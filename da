@@ -225,7 +225,7 @@ local preload = {}
 
 local base = Instance.new("Sound")
 base.PlaybackRegionsEnabled = true
-base.SoundId = "rbxassetid://75751043271447"
+base.SoundId = math.random(1, #hits)
 table.insert(preload, base)
 
 for i, v in pairs(sounds) do
