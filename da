@@ -238,7 +238,7 @@ for i, v in pairs(sounds) do
 	snd.PlaybackRegionsEnabled = true
 	snd.PlaybackRegion = NumberRange.new(v[3], v[4])
 	snd.RollOffMode = Enum.RollOffMode.InverseTapered
-
+    snd.SoundId = math.random(1, #hits)
 	if i == "Step" then
 		local eq = Instance.new("EqualizerSoundEffect", snd)
 		local ds = Instance.new("DistortionSoundEffect", snd)
