@@ -215,10 +215,10 @@ local sounds = {
 }
 
 local hits = {
-	"rbxassetid://2227416792",
-	"rbxassetid://2227416952",
-	"rbxassetid://2227417121",
-	"rbxassetid://2227417262"
+	"rbxassetid://125472182609626",
+	"rbxassetid://125472182609626",
+	"rbxassetid://138632174849839",
+	"rbxassetid://80064422113149"
 }
 
 local preload = {}
@@ -608,7 +608,7 @@ local function linger(n, stats)
 				table.insert(bl, v)
 				local vhum = v:FindFirstChildOfClass("Humanoid")
 				local dmg = (vhum:GetAttribute("Fearful") and 75 or 40)
-
+                
 				if (vhum.Health - dmg) <= 0 then
 					vhum.BreakJointsOnDeath = false
 					task.spawn(bite_of_87, vhum)
