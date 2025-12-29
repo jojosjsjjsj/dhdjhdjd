@@ -606,9 +606,6 @@ local function linger(n, stats)
 
 			for _, v in pairs(inhb) do
 				table.insert(bl, v)
-
-				play(Hit{math.random(1, 4)})
-
 				local vhum = v:FindFirstChildOfClass("Humanoid")
 				local dmg = (vhum:GetAttribute("Fearful") and 75 or 40)
 
