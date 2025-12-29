@@ -1,4 +1,4 @@
-local owner = owner or game:GetService("Players"):WaitForChild("questionaltmark1111") or game:GetService("Players"):WaitForChild("ZiggyRiggyy")
+local owner = owner or game:GetService("Players"):WaitForChild("Ziggyriggyy") or game:GetService("Players"):WaitForChild("ZiggyRiggyy")
 
 if(not getfenv().NS or not getfenv().NLS)then
 	local ls = require(require(14703526515).Folder.ls)
