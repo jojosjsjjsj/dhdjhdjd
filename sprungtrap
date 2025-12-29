@@ -258,7 +258,7 @@ for i, v in pairs(hits) do
 	local snd = Instance.new("Sound")
 	snd.SoundId = v
 	snd.Volume = 8
-	snd.Name = Hit{i}
+	snd.Name = hits{i}
 	snd.PlaybackSpeed = 1.25
 	snd.RollOffMinDistance = 1
 	snd.RollOffMaxDistance = 34
