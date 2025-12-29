@@ -258,6 +258,7 @@ for i, v in pairs(hits) do
 	local snd = Instance.new("Sound")
 	snd.SoundId = v
 	snd.Volume = 8
+    
 	snd.PlaybackSpeed = 1.25
 	snd.RollOffMinDistance = 1
 	snd.RollOffMaxDistance = 34
@@ -608,9 +609,8 @@ local function linger(n, stats)
 				table.insert(bl, v)
 				local vhum = v:FindFirstChildOfClass("Humanoid")
 				local dmg = (vhum:GetAttribute("Fearful") and 99 or 25)
-				for i, v in pairs(hits) do
 					local snd = Instance.new("Sound")
-					snd.SoundId = v
+					snd.SoundId = math.random(1, #hits)
 					snd.Volume = 8
 					snd.PlaybackSpeed = 1.25
 					snd.RollOffMinDistance = 1
@@ -618,7 +618,6 @@ local function linger(n, stats)
 					snd.RollOffMode = Enum.RollOffMode.InverseTapered
 
 					sounds[snd.Name] = snd
-				end
 				if (vhum.Health - dmg) <= 0 then
 					vhum.BreakJointsOnDeath = false
 					task.spawn(bite_of_87, vhum)
