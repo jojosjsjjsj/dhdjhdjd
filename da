@@ -593,7 +593,7 @@ local hits = vhum:GetAttribute("HitCount") or 0
 hits += 1
 vhum:SetAttribute("HitCount", hits)
 
-local dmg = (7 + stacks * 5)
+local dmg = (7 + stacks * 2)
 
 local will_die = (vhum.Health - dmg) <= 0
 
@@ -614,7 +614,7 @@ task.spawn(function()
 		task.wait(0.1)
 
 		local hits = vhum:GetAttribute("HitCount") or 0
-		local newHp = vhum.Health - 3
+		local newHp = vhum.Health - 7.5
 
 		if newHp <= 0 then
 			vhum.Health = MIN_HP
