@@ -132,6 +132,53 @@ local max_stamina = 120
 local re = Instance.new("RemoteEvent", char)
 re.Name = "SpringtrapEvent"
 
+local idleSounds = {
+	"rbxassetid://123386122143943",
+	"rbxassetid://124943151241771",
+	"rbxassetid://139204796831674",
+	"rbxassetid://114407425937974",
+	"rbxassetid://91755102390469",
+	"rbxassetid://77322127547045"
+}
+
+task.spawn(function()
+	while true do
+		local waitTime = math.random(10, 45)
+		task.wait(waitTime)
+
+		if hum.Health > 0 then
+			local soundId = idleSounds[math.random(1, #idleSounds)]
+			local s = Instance.new("Sound", hum.RootPart)
+			s.SoundId = soundId
+			s.Volume = 1
+			s.PlaybackSpeed = 1
+			s:Play()
+			s.Ended:Once(function() s:Destroy() end)
+		end
+	end
+end)
+
+local hitSounds = {
+	"rbxassetid://126131044882568",
+	"rbxassetid://116083169163925",
+	"rbxassetid://115546469271824",
+	"rbxassetid://111446469431477",
+	"rbxassetid://131929580206847",
+	"rbxassetid://125472182609626",
+	"rbxassetid://88164444698409",
+	"rbxassetid://88164444698409"
+}
+
+local function playHitSound(targetRoot)
+	local soundId = hitSounds[math.random(1, #hitSounds)]
+	local s = Instance.new("Sound", targetRoot)
+	s.SoundId = soundId
+	s.Volume = 1
+	s.PlaybackSpeed = 1
+	s:Play()
+	s.Ended:Once(function() s:Destroy() end)
+end
+
 -- // ui stuff
 local ui = assets.UI:Clone()
 ui.Parent = owner.PlayerGui
@@ -609,14 +656,6 @@ local function linger(n, stats)
 				table.insert(bl, v)
 				local vhum = v:FindFirstChildOfClass("Humanoid")
 				local dmg = (vhum:GetAttribute("Fearful") and 99 or 25)
-					local snd = Instance.new("Sound")
-					snd.SoundId = math.random(1, #hits)
-					snd.Volume = 8
-					snd.PlaybackSpeed = 1.25
-					snd.RollOffMinDistance = 1
-					snd.RollOffMaxDistance = 34
-					snd.RollOffMode = Enum.RollOffMode.InverseTapered
-
 					sounds[snd.Name] = snd
 				if (vhum.Health - dmg) <= 0 then
 					vhum.BreakJointsOnDeath = false
@@ -627,6 +666,10 @@ local function linger(n, stats)
 
 				local bl = assets.Effects.Blood.Blood:Clone()
 				bl.Parent = vhum.RootPart
+local vhum = v:FindFirstChildOfClass("Humanoid")
+if vhum and vhum.Health > 0 then
+	playHitSound(vhum.RootPart)
+end
 
 				for _, v in pairs(bl:GetChildren()) do
 					v:Emit(128)
@@ -905,6 +948,63 @@ anims.Sprint:GetMarkerReachedSignal("Step"):Connect(function()
 	end
 end)
 
+local tp_cooldown = false
+
+local function teleport_and_attack()
+	if tp_cooldown then return end
+	tp_cooldown = true
+
+	-- find nearest player
+	local nearest
+	local shortestDist = math.huge
+
+	for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+		if plr ~= owner and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (plr.Character.HumanoidRootPart.Position - hum.RootPart.Position).Magnitude
+			if dist < shortestDist then
+				shortestDist = dist
+				nearest = plr
+			end
+		end
+	end
+
+	if nearest and nearest.Character and nearest.Character:FindFirstChild("HumanoidRootPart") then
+		-- teleport near the player
+		local targetPos = nearest.Character.HumanoidRootPart.Position + nearest.Character.HumanoidRootPart.CFrame.LookVector * -3
+		char:SetPrimaryPartCFrame(CFrame.new(targetPos))
+
+		-- play attack animation and sound
+		play("Attack")
+		anims.Attack:Play(1.5)
+		task.delay(.5 / 1.5, linger, 5, {hum.RootPart, CFrame.new(0, 0, -3), Vector3.new(6, 8, 4)})
+
+		-- deal damage
+		local targetHum = nearest.Character:FindFirstChildOfClass("Humanoid")
+		if targetHum and targetHum.Health > 0 then
+-- play attack sound
+local soundId = math.random(1, 2) == 1 and "rbxassetid://84632739448429" or "rbxassetid://120317856467067"
+local attackSound = Instance.new("Sound", hum.RootPart)
+attackSound.SoundId = soundId
+attackSound.Volume = 1
+attackSound.PlaybackSpeed = 1
+attackSound:Play()
+
+attackSound.Ended:Once(function()
+	attackSound:Destroy()
+end)
+
+			targetHum.Health = math.max(targetHum.Health - 30, 0)
+		end
+
+		anims.Attack.Stopped:Wait()
+	end
+
+	-- cooldown
+	task.delay(50, function()
+		tp_cooldown = false
+	end)
+end
+
 re.OnServerEvent:Connect(function(plr, what, args)
 	if plr ~= owner then
 		return "silly goose"
@@ -912,7 +1012,7 @@ re.OnServerEvent:Connect(function(plr, what, args)
 
 	if what == "KeyDown" then
 		if args == "z" and not phantom then
-			ows = 18
+			ows = 26
 			sprinting = true
 			anims.Sprint:Play()
 			hum.WalkSpeed = ows
@@ -930,6 +1030,10 @@ re.OnServerEvent:Connect(function(plr, what, args)
 		elseif args == "r" and phantom then
 			phantom = false
 		end
+elseif what == "KeyDown" then
+	if args == "q" then
+		teleport_and_attack()
+	end
 	elseif what == "Button1Down" then
 		attack()
 	elseif what == "OnMobile" then
