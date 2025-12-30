@@ -52,7 +52,8 @@ end
 local char = assets.Springtrap:Clone()
 char.Parent = script
 char.Name = owner.Name
-char:PivotTo(owner.Character.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
+local playerChar = owner.Character
+char:PivotTo(playerChar.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
 
 local hum = char:WaitForChild("Humanoid")
 hum.RootPart.Anchored = true
