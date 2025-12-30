@@ -428,15 +428,6 @@ local function ragdoll(c, t)
 		if (v:IsA("Motor6D") or v:IsA("Motor")) and v.Name ~= "RootJoint" and v.Name ~= "Root" then
 			local bcs = Instance.new("BallSocketConstraint", v.Part0)
 			bcs.Name = "RagdollSocket"
-			local fake = Instance.new("Part", cs)
-			fake.Transparency = 1
-			fake.Massless = true
-			fake.CanCollide = false
-			fake.Name = v.Part1.Name
-			fake.Size = v.Part1.Size / 2
-			fake.CFrame = v.Part1.CFrame
-			fake.CollisionGroup = "Collider"
-
 			local w = Instance.new("WeldConstraint", fake)
 			w.Part0 = v.Part1
 			w.Part1 = fake
