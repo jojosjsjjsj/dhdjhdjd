@@ -395,87 +395,6 @@ local function do_cam(plr, dur, cam)
 	end)
 end
 
-local function ragdoll(c, t)
-	local ps = game:GetService("PhysicsService")
-
-	if not ps:IsCollisionGroupRegistered("Players") then
-		ps:RegisterCollisionGroup("Players")
-	end
-
-	if not ps:IsCollisionGroupRegistered("Collider") then
-		ps:RegisterCollisionGroup("Collider")
-	end
-
-	ps:CollisionGroupSetCollidable("Players", "Collider", false)
-
-	local hum = c:FindFirstChildOfClass("Humanoid")
-	local hrp = c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("Torso")
-
-	if not hrp then
-		return
-	end
-
-	local cs = Instance.new("Folder", c)
-	cs.Name = "ColliderFolder"
-
-	local old = hum.RequiresNeck
-
-	hum.PlatformStand = true
-	hum.RequiresNeck = false
-	hum.BreakJointsOnDeath = false
-
-	for _, v in pairs(c:GetDescendants()) do
-		if (v:IsA("Motor6D") or v:IsA("Motor")) and v.Name ~= "RootJoint" and v.Name ~= "Root" then
-			local bcs = Instance.new("BallSocketConstraint", v.Part0)
-			bcs.Name = "RagdollSocket"
-			local w = Instance.new("WeldConstraint", fake)
-			w.Part0 = v.Part1
-			w.Part1 = fake
-
-			local a1 = Instance.new("Attachment", v.Part0)
-			a1.Name = "RagdollAttachment"
-			local a2 = Instance.new("Attachment", v.Part1)
-			a2.Name = "RagdollAttachment"
-
-			a2.Position = v.C1.Position
-			a1.WorldPosition = a2.WorldPosition
-
-			bcs.LimitsEnabled = true
-			bcs.TwistLimitsEnabled = true
-
-			bcs.Attachment0 = a1
-			bcs.Attachment1 = a2
-
-			local w
-
-			if (v.Part0 ~= c.PrimaryPart and v.Part1 ~= c.PrimaryPart) or v.Name == "Neck" then
-				v.Enabled = false
-			else
-				w = Instance.new("WeldConstraint", hrp)
-				w.Part0 = c.PrimaryPart
-				w.Part1 = (c.PrimaryPart == v.Part1 and v.Part0 or v.Part1)
-			end
-
-			coroutine.wrap(function()
-				if t ~= nil and tonumber(t) ~= nil then
-					task.wait(t)
-					hum.RequiresNeck = old
-
-					v.Enabled = true
-					hum.PlatformStand = false
-
-					fake:Destroy()
-
-					if w then
-						task.delay(1, w.Destroy, w)
-					end
-
-					task.delay(1, bcs.Destroy, bcs)
-				end
-			end)()
-		end
-	end
-end
 
 local function bite_of_87(vhum, Humanoid)
 	vhum.PlatformStand = true
@@ -524,7 +443,6 @@ local function bite_of_87(vhum, Humanoid)
 			v:Emit(128)
 		end
 
-		ragdoll(vhum.Parent)
 		vhum.Health = 0
 		w:Destroy()
 
