@@ -656,7 +656,6 @@ local function linger(n, stats)
 				table.insert(bl, v)
 				local vhum = v:FindFirstChildOfClass("Humanoid")
 				local dmg = (vhum:GetAttribute("Fearful") and 99 or 25)
-					sounds[snd.Name] = snd
 				if (vhum.Health - dmg) <= 0 then
 					vhum.BreakJointsOnDeath = false
 					task.spawn(bite_of_87, vhum)
