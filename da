@@ -410,6 +410,18 @@ local function bite_of_87(vhum, Humanoid)
 	w.Part1 = w.Parent
 
 	local plr = game:GetService("Players"):GetPlayerFromCharacter(vhum.Parent)
+local s1 = Instance.new("Sound", hum.RootPart)
+s1.SoundId = "rbxassetid://76433705992689"
+s1.Volume = 1
+s1:Play()
+
+local s2 = Instance.new("Sound", hum.RootPart)
+s2.SoundId = "rbxassetid://128035789183475"
+s2.Volume = 1
+s2:Play()
+
+s1.Ended:Once(function() s1:Destroy() end)
+s2.Ended:Once(function() s2:Destroy() end)
 
 	task.spawn(function()
 		repeat
@@ -563,13 +575,25 @@ local function linger(n, stats)
 					table.insert(bl, v)
 					local vhum = v:FindFirstChildOfClass("Humanoid")
 					if vhum and vhum.Health > 0 then
-						local dmg = (vhum:GetAttribute("Fearful") and 99 or 25)
-						if (vhum.Health - dmg) <= 0 then
-							vhum.BreakJointsOnDeath = false
-							task.spawn(bite_of_87, vhum)
-						else
-							vhum.Health = vhum.Health - dmg
-						end
+						local stacks = vhum:GetAttribute("Stacks") or 0
+stacks += 1
+vhum:SetAttribute("Stacks", stacks)
+
+local dmg = overdrive and 999 or (20 + stacks * 5)
+
+if vhum.Health - dmg <= 0 then
+	task.spawn(bite_of_87, vhum)
+else
+	vhum.Health -= dmg
+end
+
+task.spawn(function()
+	for i = 1, stacks do
+		if vhum.Health <= 0 then break end
+		task.wait(1)
+		vhum.Health -= 3
+	end
+end)
 
 						local blEffect = assets.Effects.Blood.Blood:Clone()
 						blEffect.Parent = vhum.RootPart
@@ -855,60 +879,56 @@ anims.Sprint:GetMarkerReachedSignal("Step"):Connect(function()
 	end
 end)
 
-local tp_cooldown = false
+local tp_cd = false
 
 local function teleport_and_attack()
-	if tp_cooldown then return end
-	tp_cooldown = true
+	if tp_cd or attacking or phantom then return end
+	tp_cd = true
 
-	-- find nearest player
-	local nearest
-	local shortestDist = math.huge
+	local target, dist = nil, math.huge
 
 	for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
-		if plr ~= owner and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-			local dist = (plr.Character.HumanoidRootPart.Position - hum.RootPart.Position).Magnitude
-			if dist < shortestDist then
-				shortestDist = dist
-				nearest = plr
+		if plr ~= owner and plr.Character then
+			local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+			local vhum = plr.Character:FindFirstChildOfClass("Humanoid")
+			if hrp and vhum and vhum.Health > 0 then
+				local d = (hrp.Position - hum.RootPart.Position).Magnitude
+				if d < dist then
+					dist = d
+					target = plr.Character
+				end
 			end
 		end
 	end
 
-	if nearest and nearest.Character and nearest.Character:FindFirstChild("HumanoidRootPart") then
-		-- teleport near the player
-		local targetPos = nearest.Character.HumanoidRootPart.Position + nearest.Character.HumanoidRootPart.CFrame.LookVector * -3
-		char:SetPrimaryPartCFrame(CFrame.new(targetPos))
-
-		-- play attack animation and sound
-		play("Attack")
-		anims.Attack:Play(1.5)
-		task.delay(.5 / 1.5, linger, 5, {hum.RootPart, CFrame.new(0, 0, -3), Vector3.new(6, 8, 4)})
-
-		-- deal damage
-		local targetHum = nearest.Character:FindFirstChildOfClass("Humanoid")
-		if targetHum and targetHum.Health > 0 then
--- play attack sound
-local soundId = math.random(1, 2) == 1 and "rbxassetid://84632739448429" or "rbxassetid://120317856467067"
-local attackSound = Instance.new("Sound", hum.RootPart)
-attackSound.SoundId = soundId
-attackSound.Volume = 1
-attackSound.PlaybackSpeed = 1
-attackSound:Play()
-
-attackSound.Ended:Once(function()
-	attackSound:Destroy()
-end)
-
-			targetHum.Health = math.max(targetHum.Health - 30, 0)
-		end
-
-		anims.Attack.Stopped:Wait()
+	if not target then
+		task.delay(50, function() tp_cd = false end)
+		return
 	end
 
-	-- cooldown
+	local hrp = target.HumanoidRootPart
+	char:PivotTo(hrp.CFrame * CFrame.new(0, 0, -3))
+
+	local snd = Instance.new("Sound", hum.RootPart)
+	snd.SoundId = (math.random(1,2) == 1)
+		and "rbxassetid://84632739448429"
+		or "rbxassetid://120317856467067"
+	snd.Volume = 1
+	snd:Play()
+	snd.Ended:Once(function() snd:Destroy() end)
+
+	attacking = true
+	anims.Attack:Play(1.8)
+
+	task.delay(.15, function()
+		linger(6, {hum.RootPart, CFrame.new(0,0,-3), Vector3.new(7,8,5)})
+	end)
+
+	anims.Attack.Stopped:Wait()
+	attacking = false
+
 	task.delay(50, function()
-		tp_cooldown = false
+		tp_cd = false
 	end)
 end
 
@@ -938,7 +958,7 @@ re.OnServerEvent:Connect(function(plr, what, args)
 			phantom = false
 		end
 elseif what == "KeyDown" then
-	if args == "q" then
+	if args == "t" then
 		teleport_and_attack()
 	end
 	elseif what == "Button1Down" then
