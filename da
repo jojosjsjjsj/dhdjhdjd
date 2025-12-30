@@ -579,7 +579,7 @@ local function linger(n, stats)
 stacks += 1
 vhum:SetAttribute("Stacks", stacks)
 
-local dmg = overdrive and 999 or (20 + stacks * 5)
+local dmg = (7 + stacks * 25)
 
 if vhum.Health - dmg <= 0 then
 	task.spawn(bite_of_87, vhum)
@@ -590,7 +590,7 @@ end
 task.spawn(function()
 	for i = 1, stacks do
 		if vhum.Health <= 0 then break end
-		task.wait(1)
+		task.wait(0.1)
 		vhum.Health -= 3
 	end
 end)
@@ -985,6 +985,7 @@ elseif what == "KeyDown" then
 		local map = {
 			PhantomWalk = "r",
 			VentilationError = "e"
+            Scare = "r"
 		}
 	end
 end)
