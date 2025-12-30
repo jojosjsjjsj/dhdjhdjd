@@ -671,11 +671,9 @@ local function linger(n, stats)
 					v:Emit(128)
 				end
 			end
-local vhum = v:FindFirstChildOfClass("Humanoid")
 if vhum and vhum.Health > 0 then
 	playHitSound(vhum.RootPart)
 end
-
 			task.wait()
 			task.wait()
 		end
