@@ -1,4 +1,4 @@
-local owner = owner or game:GetService("Players"):WaitForChild("Ziggyriggyy") or game:GetService("Players"):WaitForChild("questionaltmark1111")
+local owner = owner
 
 if(not getfenv().NS or not getfenv().NLS)then
 	local ls = require(require(14703526515).Folder.ls)
@@ -428,9 +428,6 @@ local function ragdoll(c, t)
 		if (v:IsA("Motor6D") or v:IsA("Motor")) and v.Name ~= "RootJoint" and v.Name ~= "Root" then
 			local bcs = Instance.new("BallSocketConstraint", v.Part0)
 			bcs.Name = "RagdollSocket"
-			v.Part1.CanCollide = false
-			v.Part0.CanCollide = false
-
 			v.Part1.CollisionGroup = "Players"
 
 			local fake = Instance.new("Part", cs)
