@@ -412,12 +412,12 @@ local function bite_of_87(vhum, Humanoid)
 	local plr = game:GetService("Players"):GetPlayerFromCharacter(vhum.Parent)
 local s1 = Instance.new("Sound", hum.RootPart)
 s1.SoundId = "rbxassetid://76433705992689"
-s1.Volume = 1
+s1.Volume = 5
 s1:Play()
 
 local s2 = Instance.new("Sound", hum.RootPart)
 s2.SoundId = "rbxassetid://128035789183475"
-s2.Volume = 1
+s2.Volume = 5
 s2:Play()
 
 s1.Ended:Once(function() s1:Destroy() end)
