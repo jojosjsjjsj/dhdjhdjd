@@ -600,7 +600,7 @@ local hits = vhum:GetAttribute("HitCount") or 0
 hits += 1
 vhum:SetAttribute("HitCount", hits)
 
-local dmg = (5 + stacks * 2)
+local dmg = 5
 
 local will_die = (vhum.Health - dmg) <= 0
 
