@@ -424,7 +424,7 @@ s2.Volume = 8
 s2:Play()
 s2.Ended:Once(function() s2:Destroy() end)
 end)
-task.delay(3, function()
+task.delay(2, function()
 local s2 = Instance.new("Sound", hum.RootPart)
 s2.SoundId = "rbxassetid://135556318939890"
 s2.Volume = 8
