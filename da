@@ -608,27 +608,29 @@ local function hb(pt, cf, size, type, bl)
 			p.Shape = "Ball"
 		end
 
-		coroutine.wrap(function()
+		task.spawn(function()
 			task.wait(.5)
 			p:Destroy()
-		end)()
+		end)
 	end
 
 	local victims = {}
 	local tbl
 
 	if type == "Magnitude" then
-		tbl = workspace:GetPartBoundsInRadius(pt.CFrame.Position, size.X / 2, params)
+		tbl = workspace:GetPartBoundsInRadius(pt.Position, size.X / 2, params)
 	else
 		tbl = workspace:GetPartBoundsInBox(pt.CFrame * cf, size, params)
 	end
 
 	for _, hit in pairs(tbl) do
-		local hum = findhum(hit)
-
-		if hum and hum.RootPart and hum.Health > 0 then
-			if not table.find(victims, hit:FindFirstAncestorOfClass("Model")) then
-				table.insert(victims, hit:FindFirstAncestorOfClass("Model"))
+		if hit then
+			local hum = findhum(hit)
+			if hum and hum.RootPart and hum.Health > 0 then
+				local model = hit:FindFirstAncestorOfClass("Model")
+				if model and not table.find(victims, model) then
+					table.insert(victims, model)
+				end
 			end
 		end
 	end
@@ -643,7 +645,7 @@ end
 local function linger(n, stats)
 	local bl = {}
 
-	if #(stats) == 3 then
+	if #stats == 3 then
 		table.insert(stats, "Box")
 	end
 
@@ -654,24 +656,30 @@ local function linger(n, stats)
 			local inhb = hb(table.unpack(stats))
 
 			for _, v in pairs(inhb) do
-				table.insert(bl, v)
-				local vhum = v:FindFirstChildOfClass("Humanoid")
-				local dmg = (vhum:GetAttribute("Fearful") and 99 or 25)
-				if (vhum.Health - dmg) <= 0 then
-					vhum.BreakJointsOnDeath = false
-					task.spawn(bite_of_87, vhum)
-				else
-					vhum.Health = vhum.Health -dmg
-				end
+				if v then
+					table.insert(bl, v)
+					local vhum = v:FindFirstChildOfClass("Humanoid")
+					if vhum and vhum.Health > 0 then
+						local dmg = (vhum:GetAttribute("Fearful") and 99 or 25)
+						if (vhum.Health - dmg) <= 0 then
+							vhum.BreakJointsOnDeath = false
+							task.spawn(bite_of_87, vhum)
+						else
+							vhum.Health = vhum.Health - dmg
+						end
 
-				local bl = assets.Effects.Blood.Blood:Clone()
-				bl.Parent = vhum.RootPart
+						local blEffect = assets.Effects.Blood.Blood:Clone()
+						blEffect.Parent = vhum.RootPart
 
-				for _, v in pairs(bl:GetChildren()) do
-					v:Emit(128)
+						for _, particle in pairs(blEffect:GetChildren()) do
+							particle:Emit(128)
+						end
+
+						playHitSound(vhum.RootPart)
+					end
 				end
 			end
-	playHitSound(v.HumanoidRootPart)
+
 			task.wait()
 			task.wait()
 		end
