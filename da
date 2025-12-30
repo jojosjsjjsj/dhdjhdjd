@@ -984,7 +984,7 @@ elseif what == "KeyDown" then
 
 		local map = {
 			PhantomWalk = "r",
-			VentilationError = "e"
+			VentilationError = "e",
             Scare = "r"
 		}
 	end
