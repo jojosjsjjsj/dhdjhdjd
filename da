@@ -556,6 +556,9 @@ local function hb(pt, cf, size, type, bl)
 
 	return victims
 end
+local MAX_HITS = 4
+local BLEEDOUT_HITS = 2
+local MIN_HP = 0.001
 
 local function linger(n, stats)
 	local bl = {}
@@ -578,22 +581,47 @@ local function linger(n, stats)
 						local stacks = vhum:GetAttribute("Stacks") or 0
 stacks += 1
 vhum:SetAttribute("Stacks", stacks)
+local hits = vhum:GetAttribute("HitCount") or 0
+hits += 1
+vhum:SetAttribute("HitCount", hits)
 
 local dmg = (7 + stacks * 25)
 
-if vhum.Health - dmg <= 0 then
-	task.spawn(bite_of_87, vhum)
+local will_die = (vhum.Health - dmg) <= 0
+
+if will_die then
+	-- clamp so kill animation can run
+	vhum.Health = MIN_HP
+
+	if hits >= MAX_HITS then
+		task.spawn(bite_of_87, vhum)
+	end
 else
 	vhum.Health -= dmg
 end
 
 task.spawn(function()
 	for i = 1, stacks do
-		if vhum.Health <= 0 then break end
+		if vhum.Health <= MIN_HP then break end
 		task.wait(0.1)
-		vhum.Health -= 3
+
+		local hits = vhum:GetAttribute("HitCount") or 0
+		local newHp = vhum.Health - 3
+
+		if newHp <= 0 then
+			vhum.Health = MIN_HP
+
+			if hits >= BLEEDOUT_HITS then
+				task.spawn(bite_of_87, vhum)
+			end
+
+			break
+		else
+			vhum.Health = newHp
+		end
 	end
 end)
+
 
 						local blEffect = assets.Effects.Blood.Blood:Clone()
 						blEffect.Parent = vhum.RootPart
@@ -957,10 +985,7 @@ re.OnServerEvent:Connect(function(plr, what, args)
 		elseif args == "r" and phantom then
 			phantom = false
 		end
-elseif what == "KeyDown" then
-	if args == "t" then
-		teleport_and_attack()
-	end
+
 	elseif what == "Button1Down" then
 		attack()
 	elseif what == "OnMobile" then
