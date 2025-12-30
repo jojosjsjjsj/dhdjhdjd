@@ -417,7 +417,7 @@ s1:Play()
 
 local s2 = Instance.new("Sound", hum.RootPart)
 s2.SoundId = "rbxassetid://128035789183475"
-s2.Volume = 5
+s2.Volume = 8
 s2:Play()
 
 s1.Ended:Once(function() s1:Destroy() end)
@@ -585,7 +585,7 @@ local hits = vhum:GetAttribute("HitCount") or 0
 hits += 1
 vhum:SetAttribute("HitCount", hits)
 
-local dmg = (7 + stacks * 25)
+local dmg = (7 + stacks * 5)
 
 local will_die = (vhum.Health - dmg) <= 0
 
