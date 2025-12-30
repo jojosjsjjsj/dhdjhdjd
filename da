@@ -450,7 +450,6 @@ local function ragdoll(c, t)
 
 			if (v.Part0 ~= c.PrimaryPart and v.Part1 ~= c.PrimaryPart) or v.Name == "Neck" then
 				v.Enabled = false
-				fake.CanCollide = true
 			else
 				w = Instance.new("WeldConstraint", hrp)
 				w.Part0 = c.PrimaryPart
