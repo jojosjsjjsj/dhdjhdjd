@@ -665,10 +665,6 @@ local function linger(n, stats)
 
 				local bl = assets.Effects.Blood.Blood:Clone()
 				bl.Parent = vhum.RootPart
-local vhum = v:FindFirstChildOfClass("Humanoid")
-if vhum and vhum.Health > 0 then
-	playHitSound(vhum.RootPart)
-end
 
 				for _, v in pairs(bl:GetChildren()) do
 					v:Emit(128)
