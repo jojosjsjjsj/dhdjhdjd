@@ -431,6 +431,13 @@ s2.Volume = 8
 s2:Play()
 s2.Ended:Once(function() s2:Destroy() end)
 end)
+task.delay(3.5, function()
+local s2 = Instance.new("Sound", hum.RootPart)
+s2.SoundId = "rbxassetid://79523726520247"
+s2.Volume = 8
+s2:Play()
+s2.Ended:Once(function() s2:Destroy() end)
+end)
 	task.spawn(function()
 		repeat
 			task.wait()
@@ -593,7 +600,7 @@ local hits = vhum:GetAttribute("HitCount") or 0
 hits += 1
 vhum:SetAttribute("HitCount", hits)
 
-local dmg = (7 + stacks * 2)
+local dmg = (3 + stacks * 1)
 
 local will_die = (vhum.Health - dmg) <= 0
 
@@ -614,7 +621,7 @@ task.spawn(function()
 		task.wait(0.1)
 
 		local hits = vhum:GetAttribute("HitCount") or 0
-		local newHp = vhum.Health - 7.5
+		local newHp = vhum.Health - 9.1
 
 		if newHp <= 0 then
 			vhum.Health = MIN_HP
