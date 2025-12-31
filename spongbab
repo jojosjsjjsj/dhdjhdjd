@@ -702,11 +702,11 @@ local function bleed_out(vhum)
 	-- bleed spam
 	task.spawn(function()
 		while vhum.Health > 0 do
-            vhum.Health = -5
 			for _, p in ipairs(blood:GetChildren()) do
 				p:Emit(30)
 			end
 			task.wait(0.12)
+            vhum.Health = -5
 		end
 	end)
 
