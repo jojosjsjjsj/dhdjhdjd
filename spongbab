@@ -766,7 +766,6 @@ local function ventilation_error()
 			if mdl then
 				local vhum = mdl:FindFirstChildOfClass("Humanoid")
 				if vhum and vhum ~= hum and vhum.Health > 0 then
-                    vhum.Health -= 15
 					bleed_out(vhum)
 				end
 			end
