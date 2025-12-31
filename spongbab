@@ -706,7 +706,6 @@ local function bleed_out(vhum)
 				p:Emit(30)
 			end
 			task.wait(0.12)
-            vhum.Health -= 3
 		end
 	end)
 
