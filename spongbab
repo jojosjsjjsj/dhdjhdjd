@@ -2,10 +2,10 @@ local owner = owner
 
 local http = game:GetService("HttpService")
 local tw = game:GetService("TweenService")
-local assets = game:GetService("ReplicatedStorage"):WaitForChild("SpringtrapAssets")
+local assets = game:GetService("ReplicatedStorage"):WaitForChild("Model")
 
 -- Clone character
-local char = assets.Springtrap:Clone()
+local char = assets:Clone()
 char.Parent = workspace
 char.Name = owner.Name
 char:PivotTo(owner.Character.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
