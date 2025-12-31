@@ -706,7 +706,7 @@ local function bleed_out(vhum)
 				p:Emit(30)
 			end
 			task.wait(0.12)
-            vhum.Health -= 0.045
+            vhum.Health -= 1
 		end
 	end)
 
@@ -767,6 +767,7 @@ local function ventilation_error()
 			if mdl then
 				local vhum = mdl:FindFirstChildOfClass("Humanoid")
 				if vhum and vhum ~= hum and vhum.Health > 0 then
+                    vhum.Health -= 15
 					bleed_out(vhum)
 				end
 			end
