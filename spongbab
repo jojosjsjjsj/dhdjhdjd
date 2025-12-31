@@ -172,8 +172,9 @@ end
 re.OnServerEvent:Connect(function(plr, what, args)
 	if plr ~= owner then return end
 
-if what == "KeyDown" and args == "e" then
-	e_move()
+	if what == "KeyDown" then
+		if args == "e" then
+			e_move()
 		elseif args == "r" then
 			phantom_walk()
 		end
