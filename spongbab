@@ -1,0 +1,189 @@
+local owner = owner
+
+local http = game:GetService("HttpService")
+local tw = game:GetService("TweenService")
+local assets = game:GetService("ReplicatedStorage"):WaitForChild("SpringtrapAssets")
+
+-- Clone character
+local char = assets.Springtrap:Clone()
+char.Parent = workspace
+char.Name = owner.Name
+char:PivotTo(owner.Character.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
+
+local hum = char:WaitForChild("Humanoid")
+hum.WalkSpeed = 45
+hum.RootPart.Anchored = false
+
+-- Disable certain humanoid states
+local blacklist = {
+	"Flying", "Ragdoll", "Freefall", "GettingUp", "FallingDown", "PlatformStanding"
+}
+
+for _, v in pairs(blacklist) do
+	hum:SetStateEnabled(Enum.HumanoidStateType[v], false)
+end
+
+owner.Character = char
+
+-- RemoteEvent
+local re = Instance.new("RemoteEvent", char)
+re.Name = "SpringtrapEvent"
+
+-- Sounds
+local fnaf3 = Instance.new("Sound", hum.RootPart)
+fnaf3.SoundId = "rbxassetid://87924987204611"
+fnaf3.RollOffMaxDistance = 100
+fnaf3.PlaybackSpeed = 1.6667 -- 1/0.6
+fnaf3.Looped = true
+fnaf3.Volume = 0.02
+fnaf3:Play()
+
+local eq = Instance.new("EqualizerSoundEffect", fnaf3)
+eq.HighGain = -80
+eq.MidGain = -15
+eq.LowGain = 10
+
+local hitSounds = {
+	"rbxassetid://126131044882568",
+	"rbxassetid://116083169163925",
+	"rbxassetid://115546469271824",
+	"rbxassetid://111446469431477"
+}
+
+local function playHitSound(targetRoot)
+	local soundId = hitSounds[math.random(1, #hitSounds)]
+	local s = Instance.new("Sound", targetRoot)
+	s.SoundId = soundId
+	s.Volume = 1
+	s.PlaybackSpeed = 1
+	s:Play()
+	s.Ended:Once(function() s:Destroy() end)
+end
+
+local Players = game:GetService("Players")
+local Debris = game:GetService("Debris")
+
+local touching = {}
+local e_cd = false
+
+local function bleed_out(vhum)
+	if touching[vhum] then return end
+	touching[vhum] = true
+
+	local char = vhum.Parent
+	local hrp = vhum.RootPart
+	if not hrp then return end
+
+	local oldWalk = vhum.WalkSpeed
+	local oldJump = vhum.JumpPower
+
+	vhum.WalkSpeed = 0
+	vhum.JumpPower = 0
+	vhum.AutoRotate = false
+
+	local hitSound = Instance.new("Sound", hrp)
+	hitSound.SoundId = "rbxassetid://4620904701"
+	hitSound.Volume = 1
+	hitSound:Play()
+
+	local blood = assets.Effects.Blood.Blood:Clone()
+	blood.Parent = hrp
+
+	task.delay(4, function()
+		if vhum.Health > 0 then
+			local fin = Instance.new("Sound", hrp)
+			fin.SoundId = "rbxassetid://613960902"
+			fin.Volume = 1
+			fin:Play()
+			Debris:AddItem(fin, 6)
+		end
+	end)
+
+	task.spawn(function()
+		while vhum.Health > 0 do
+			for _, p in pairs(blood:GetChildren()) do
+				p:Emit(20)
+			end
+			task.wait(0.15)
+		end
+	end)
+
+	vhum.Died:Once(function()
+		hitSound:Destroy()
+		blood:Destroy()
+	end)
+end
+
+local function e_move()
+	if e_cd then return end
+	e_cd = true
+
+	local snd = Instance.new("Sound", hum.RootPart)
+	snd.SoundId = (math.random(1,2) == 1)
+		and "rbxassetid://2357464981"
+		or "rbxassetid://112559738033150"
+	snd.Volume = 1
+	snd:Play()
+
+	hum.WalkSpeed = 90
+
+	local con
+	con = hum.RootPart.Touched:Connect(function(hit)
+		local vhum = hit.Parent and hit.Parent:FindFirstChildOfClass("Humanoid")
+		if vhum and vhum ~= hum and vhum.Health > 0 then
+			bleed_out(vhum)
+		end
+	end)
+
+	task.delay(4, function()
+		hum.WalkSpeed = 45
+		if con then con:Disconnect() end
+		snd:Destroy()
+		task.delay(8, function()
+			e_cd = false
+		end)
+	end)
+end
+
+local function phantom_walk()
+	local loopSound = Instance.new("Sound", hum.RootPart)
+	loopSound.SoundId = "rbxassetid://5990425910"
+	loopSound.Volume = 0.5
+	loopSound:Play()
+end
+
+-- Attack
+local function attack()
+	local params = OverlapParams.new()
+	params.FilterDescendantsInstances = {char, script}
+	params.FilterType = Enum.RaycastFilterType.Exclude
+
+	local victims = workspace:GetPartBoundsInRadius(hum.RootPart.Position, 6, params)
+	for _, part in pairs(victims) do
+		local vhum = part.Parent:FindFirstChildOfClass("Humanoid")
+		if vhum and vhum.Health > 0 then
+			vhum.Health -= 30
+			playHitSound(vhum.RootPart)
+		end
+	end
+end
+
+-- Client input handling
+re.OnServerEvent:Connect(function(plr, what, args)
+	if plr ~= owner then return end
+
+if what == "KeyDown" and args == "e" then
+	e_move()
+		elseif args == "r" then
+			phantom_walk()
+		end
+	elseif what == "Button1Down" then
+		attack()
+	end
+end)
+
+-- Client UI setup
+local ui = assets.UI:Clone()
+ui.Parent = owner.PlayerGui
+
+re:FireClient(owner, "OnMobile")
