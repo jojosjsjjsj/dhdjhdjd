@@ -671,61 +671,58 @@ local function attack()
 		attacking = false
 	end
 end
-
-local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 
-local touching = {}
 local e_cd = false
+local bleeding = {}
 
 local function bleed_out(vhum)
-	if touching[vhum] then return end
-	touching[vhum] = true
+	if bleeding[vhum] then return end
+	bleeding[vhum] = true
 
 	local hrp = vhum.RootPart
 	if not hrp then return end
 
-	-- Immobilize
-	local oldWalk = vhum.WalkSpeed
-	local oldJump = vhum.JumpPower
+	-- immobilize
 	vhum.WalkSpeed = 0
 	vhum.JumpPower = 0
 	vhum.AutoRotate = false
 
-	-- Hit sound
-	local hitSound = Instance.new("Sound", hrp)
-	hitSound.SoundId = "rbxassetid://4620904701"
-	hitSound.Volume = 1
-	hitSound:Play()
+	-- impact sound
+	local s1 = Instance.new("Sound", hrp)
+	s1.SoundId = "rbxassetid://4620904701"
+	s1.Volume = 1
+	s1:Play()
 
-	-- Blood effect
+	-- blood
 	local blood = assets.Effects.Blood.Blood:Clone()
 	blood.Parent = hrp
 
-	-- Delayed sound after 4 seconds
-	task.delay(4, function()
-		if vhum.Health > 0 then
-			local fin = Instance.new("Sound", hrp)
-			fin.SoundId = "rbxassetid://613960902"
-			fin.Volume = 1
-			fin:Play()
-			Debris:AddItem(fin, 6)
-		end
-	end)
-
-	-- Spam blood while alive
+	-- bleed spam
 	task.spawn(function()
 		while vhum.Health > 0 do
-			for _, p in pairs(blood:GetChildren()) do
-				p:Emit(20)
+			for _, p in ipairs(blood:GetChildren()) do
+				p:Emit(30)
 			end
-			task.wait(0.15)
+			task.wait(0.12)
 		end
 	end)
 
-	-- Cleanup on death
+	-- delayed sound
+	task.delay(4, function()
+		if vhum.Health > 0 then
+			local s2 = Instance.new("Sound", hrp)
+			s2.SoundId = "rbxassetid://613960902"
+			s2.Volume = 1
+			s2:Play()
+			Debris:AddItem(s2, 6)
+		end
+	end)
+
+	-- cleanup
 	vhum.Died:Once(function()
-		hitSound:Destroy()
+		s1:Destroy()
 		blood:Destroy()
 	end)
 end
@@ -734,7 +731,7 @@ local function ventilation_error()
 	if e_cd then return end
 	e_cd = true
 
-	-- Play E activation sound
+	-- activation sound
 	local snd = Instance.new("Sound", hum.RootPart)
 	snd.SoundId = (math.random(1,2) == 1)
 		and "rbxassetid://2357464981"
@@ -742,23 +739,41 @@ local function ventilation_error()
 	snd.Volume = 1
 	snd:Play()
 
-	-- Increase speed
-	local oldSpeed = hum.WalkSpeed
 	hum.WalkSpeed = 90
 
-	-- Connect touch detection
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {char}
+
+	local elapsed = 0
 	local con
-	con = hum.RootPart.Touched:Connect(function(hit)
-		local vhum = hit.Parent and hit.Parent:FindFirstChildOfClass("Humanoid")
-		if vhum and vhum ~= hum and vhum.Health > 0 then
-			bleed_out(vhum)
+
+	con = RunService.Heartbeat:Connect(function(dt)
+		elapsed += dt
+		if elapsed >= 4 then
+			con:Disconnect()
+			return
+		end
+
+		local parts = workspace:GetPartBoundsInRadius(
+			hum.RootPart.Position,
+			6,
+			params
+		)
+
+		for _, part in ipairs(parts) do
+			local mdl = part:FindFirstAncestorOfClass("Model")
+			if mdl then
+				local vhum = mdl:FindFirstChildOfClass("Humanoid")
+				if vhum and vhum ~= hum and vhum.Health > 0 then
+					bleed_out(vhum)
+				end
+			end
 		end
 	end)
 
-	-- Reset after 4 seconds
 	task.delay(4, function()
 		hum.WalkSpeed = 45
-		if con then con:Disconnect() end
 		snd:Destroy()
 		task.delay(8, function()
 			e_cd = false
