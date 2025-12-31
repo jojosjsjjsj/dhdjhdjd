@@ -692,7 +692,7 @@ local function bleed_out(vhum)
 	-- impact sound
 	local s1 = Instance.new("Sound", hrp)
 	s1.SoundId = "rbxassetid://4620904701"
-	s1.Volume = 1
+	s1.Volume = 4
 	s1:Play()
 
 	-- blood
@@ -715,7 +715,7 @@ local function bleed_out(vhum)
 		if vhum.Health > 0 then
 			local s2 = Instance.new("Sound", hrp)
 			s2.SoundId = "rbxassetid://613960902"
-			s2.Volume = 1
+			s2.Volume = 4
 			s2:Play()
 			Debris:AddItem(s2, 6)
 		end
