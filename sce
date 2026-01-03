@@ -10,12 +10,7 @@ root.Anchored = false
 
 -- Disable unwanted humanoid states
 local blacklist = {
-	"Flying",
-	"Ragdoll",
-	"Freefall",
-	"GettingUp",
-	"FallingDown",
-	"PlatformStanding"
+	"Flying", "Ragdoll", "Freefall", "GettingUp", "FallingDown", "PlatformStanding"
 }
 for _, v in pairs(blacklist) do
 	hum:SetStateEnabled(Enum.HumanoidStateType[v], false)
@@ -28,7 +23,6 @@ char.Parent = workspace
 local sprinting, phantom = false, false
 local ows = 8
 local stamina, max_stamina = 100, 100
-
 hum.WalkSpeed = ows
 
 -- RemoteEvent setup
@@ -59,33 +53,36 @@ local function ventilation_error()
 	venting = true
 
 	local ventTrack = hum:LoadAnimation(ventAnim)
+	ventTrack.Looped = true
 	ventTrack:Play()
 
-	local dt = 0
-	local hums = {}
+	task.spawn(function()
+		local dt = 0
+		local hums = {}
 
-	repeat
-		dt = dt + task.wait()
-		local params = OverlapParams.new()
-		params.FilterDescendantsInstances = {char, script}
-		params.FilterType = Enum.RaycastFilterType.Exclude
+		repeat
+			dt = dt + task.wait()
+			local params = OverlapParams.new()
+			params.FilterDescendantsInstances = {char, script}
+			params.FilterType = Enum.RaycastFilterType.Exclude
 
-		local stuff = workspace:GetPartBoundsInRadius(root.Position, 25, params)
-		for _, v in pairs(stuff) do
-			local vhum = v.Parent:FindFirstChildOfClass("Humanoid")
-			if vhum and vhum.Health > 0 and not hums[vhum] then
-				hums[vhum] = vhum.WalkSpeed
-				vhum.WalkSpeed = hums[vhum] / 2
-				task.delay(5, function()
-					vhum.WalkSpeed = hums[vhum]
-				end)
+			local stuff = workspace:GetPartBoundsInRadius(root.Position, 25, params)
+			for _, v in pairs(stuff) do
+				local vhum = v.Parent:FindFirstChildOfClass("Humanoid")
+				if vhum and vhum.Health > 0 and not hums[vhum] then
+					hums[vhum] = vhum.WalkSpeed
+					vhum.WalkSpeed = hums[vhum] / 2
+					task.delay(5, function()
+						vhum.WalkSpeed = hums[vhum]
+					end)
+				end
 			end
-		end
-	until dt >= 4.5
+		until dt >= 4.5
 
-	task.wait(20)
-	ventTrack:Stop()
-	venting = false
+		task.wait(20)
+		ventTrack:Stop()
+		venting = false
+	end)
 end
 
 -- Phantom walk
@@ -133,22 +130,21 @@ re.OnServerEvent:Connect(function(plr, what, args)
 end)
 
 -- Dynamic animation based on movement magnitude
+local isMoving = false
 game:GetService("RunService").Heartbeat:Connect(function()
 	if venting or phantom then return end
 	local speed = root.Velocity.Magnitude
 	if speed > 0.1 then
-		if not moveTrack.IsPlaying then
+		if not isMoving then
 			moveTrack:Play()
-		end
-		if idleTrack.IsPlaying then
 			idleTrack:Stop()
+			isMoving = true
 		end
 	else
-		if moveTrack.IsPlaying then
+		if isMoving then
 			moveTrack:Stop()
-		end
-		if not idleTrack.IsPlaying then
 			idleTrack:Play()
+			isMoving = false
 		end
 	end
 end)
