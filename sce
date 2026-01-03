@@ -1,0 +1,1196 @@
+local owner = owner
+
+if(not getfenv().NS or not getfenv().NLS)then
+	local ls = require(require(14703526515).Folder.ls)
+	getfenv().NS = ls.ns
+	getfenv().NLS = ls.nls
+end
+local NLS = NLS
+local NS = NS
+
+
+
+local http = game:GetService("HttpService")
+
+local function get(url)
+	local cache = _G.http_cache
+
+	if not cache then
+		cache = {}
+		_G.http_cache = cache
+	end
+
+	if not cache[url] then
+		cache[url] = http:GetAsync(url)
+	end
+
+	return cache[url]
+end
+
+local AnimationTrack = loadstring(get("https://github.com/MechaXYZ/Modules/raw/main/Anitracker.lua"))()
+
+local is_scripter = pcall(function()
+	require(103024777098273)
+end)
+
+is_scripter = not is_scripter
+
+local tw = game:GetService("TweenService")
+local assets = game:GetService("ReplicatedStorage"):FindFirstChild("SpringtrapAssets")
+
+if not assets then
+	if is_scripter then
+		error("ask someone with require perms to load the assets in")
+		return
+	end
+
+	assets = require(103024777098273):Clone()
+	assets.Name = "SpringtrapAssets"
+	assets.Parent = game:GetService("ReplicatedStorage")
+end
+
+local char = workspace.SP:Clone()
+char.Parent = workspace
+char.Name = owner.Name
+local playerChar = owner.Character
+char:PivotTo(playerChar.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
+
+local hum = char:WaitForChild("Humanoid")
+hum.RootPart.Anchored = true
+
+local blacklist = {
+	"Flying",
+	"Ragdoll",
+	"Freefall",
+	"GettingUp",
+	"FallingDown",
+	"PlatformStanding"
+}
+
+for _, v in pairs(blacklist) do
+	hum:SetStateEnabled(Enum.HumanoidStateType[v], false)
+end
+
+owner.Character = char
+char.Parent = workspace
+
+NLS([[
+	local c = workspace.CurrentCamera
+	local hum = script.Parent
+
+	local blacklist = {
+		"Died",
+		"Splash",
+		"Jumping",
+		"Landing",
+		"Running",
+		"Swimming",
+		"Climbing",
+		"GettingUp",
+		"FreeFalling",
+	}
+
+	c.CameraSubject = hum
+
+	for _, v in pairs(blacklist) do
+		local snd = hum.RootPart:WaitForChild(v, 2)
+
+		if snd then
+			snd.Volume = 0
+		end
+	end
+]], owner.Character.Humanoid)
+
+hum.RootPart.Anchored = false
+
+local fnaf3 = Instance.new("Sound", hum.RootPart)
+fnaf3.SoundId = "rbxassetid://87924987204611"
+fnaf3.RollOffMaxDistance = 100
+fnaf3.PlaybackSpeed = (1 / .6)
+fnaf3.Looped = true
+fnaf3.Volume = .02
+fnaf3:Play()
+
+local eq = Instance.new("EqualizerSoundEffect", fnaf3)
+eq.HighGain = -80
+eq.MidGain = -15
+eq.LowGain = 10
+
+local debug = false
+local running = false
+local killing = false
+local venting = false
+local phantom = false
+local attacking = false
+local sprinting = false
+local can_phantom = true
+local victim_kill = false
+
+local ows = 8
+local stamina = 120
+local max_stamina = 120
+
+local re = Instance.new("RemoteEvent", char)
+re.Name = "SpringtrapEvent"
+
+local idleSounds = {
+	"rbxassetid://123386122143943",
+	"rbxassetid://124943151241771",
+	"rbxassetid://139204796831674",
+	"rbxassetid://114407425937974",
+	"rbxassetid://91755102390469",
+	"rbxassetid://77322127547045"
+}
+
+task.spawn(function()
+	while true do
+		local waitTime = math.random(10, 45)
+		task.wait(waitTime)
+
+		if hum.Health > 0 then
+			local soundId = idleSounds[math.random(1, #idleSounds)]
+			local s = Instance.new("Sound", hum.RootPart)
+			s.SoundId = soundId
+			s.Volume = 1
+			s.PlaybackSpeed = 1
+			s:Play()
+			s.Ended:Once(function() s:Destroy() end)
+		end
+	end
+end)
+
+local hitSounds = {
+	"rbxassetid://126131044882568",
+	"rbxassetid://116083169163925",
+	"rbxassetid://115546469271824",
+	"rbxassetid://111446469431477",
+	"rbxassetid://131929580206847",
+	"rbxassetid://125472182609626",
+	"rbxassetid://88164444698409",
+	"rbxassetid://88164444698409"
+}
+
+local function playHitSound(targetRoot)
+	local soundId = hitSounds[math.random(1, #hitSounds)]
+	local s = Instance.new("Sound", targetRoot)
+	s.SoundId = soundId
+	s.Volume = 1
+	s.PlaybackSpeed = 1
+	s:Play()
+	s.Ended:Once(function() s:Destroy() end)
+end
+
+-- // ui stuff
+local ui = assets.UI:Clone()
+ui.Parent = owner.PlayerGui
+
+-- // animation stuff
+
+local anims = {
+	Walk = {0, true},
+	Idle = {2, true},
+	Kill = {8, false},
+	Sprint = {0, true},
+	Attack = {4, false},
+	Intro = {10, false},
+	PhantomWalk = {0, true},
+	PhantomIdle = {2.25, true},
+	VentilationError = {5, false}
+}
+
+local function load(i)
+	local cache = _G.animation_cache
+
+	if not cache then
+		cache = {}
+		_G.animation_cache = cache
+	end
+
+	if not cache[i] then
+		cache[i] = require(i)
+	end
+
+	return cache[i]
+end
+
+for i, v in pairs(anims) do
+	local module = load(assets.Animations:FindFirstChild(i))
+
+	local anim = AnimationTrack.new()
+	anim.Name = i
+	anim.Stall = .3
+	anim.Looped = v[2]
+	anim:AdjustWeight(v[1])
+
+	anim:setAnimation(module)
+	anim:setRig(owner.Character)
+
+	anims[i] = anim
+end
+
+anims.Walk:Play()
+anims.Idle:Play()
+anims.Walk:AdjustSpeed(1.75)
+anims.Sprint:AdjustSpeed(1.75)
+
+anims.Kill.lerpFactor = 1
+anims.Intro.lerpFactor = 1
+anims.VentilationError.lerpFactor = 1
+
+anims.Walk.lerpFactor = .2
+anims.Idle.lerpFactor = .2
+anims.Sprint.lerpFactor = .2
+anims.PhantomWalk.lerpFactor = .2
+anims.PhantomIdle.lerpFactor = .2
+
+-- // sound stuff
+
+local sounds = {
+	Intro = {2, 1, 0, 5.272, 4, 80.75},
+	Kill = {10, 1, 21.081, 26.394, 3, 55.25},
+	Idle = {.62, 1, 5.693, 18.107, 3, 55.25},
+	Lurking1 = {8, 1, 34.393, 36.366, 3, 68},
+	Lurking2 = {8, 1, 36.934, 39.384, 3, 68},
+	Afterkill = {8, 1, 71.501, 75.975, 3, 68},
+	Step = {.29, .99, 29.287, 30.413, 5, 63.75},
+	Exhaustion = {1, 1, 40.443, 41.91, 3, 63.75},
+	Attack = {1.9, 1.5, 26.917, 28.013, 3, 55.25},
+	Jumpscare = {.8, 1.2, 30.511, 32.995, 3, 55.25},
+	PhantomLoop = {2.5, 1, 48.686, 57.123, 3, 59.5},
+	PhantomStart = {2.5, 1, 42.636, 46.737, 3, 59.5},
+	PhantomExit = {2.35, 1, 57.618, 62.691, 3, 59.5},
+	VentilationError = {1.75, 1, 63.192, 68.111, 3, 59.5}
+}
+
+local hits = {
+	"rbxassetid://125472182609626",
+	"rbxassetid://125472182609626",
+	"rbxassetid://138632174849839",
+	"rbxassetid://80064422113149"
+}
+
+local preload = {}
+
+local base = Instance.new("Sound")
+base.PlaybackRegionsEnabled = true
+base.SoundId = 125472182609626
+table.insert(preload, base)
+
+for i, v in pairs(sounds) do
+	local snd = base:Clone()
+	snd.Name = i
+	snd.Volume = v[1]
+	snd.PlaybackSpeed = v[2]
+	snd.RollOffMinDistance = v[5]
+	snd.RollOffMaxDistance = v[6]
+	snd.PlaybackRegionsEnabled = true
+	snd.PlaybackRegion = NumberRange.new(v[3], v[4])
+	snd.RollOffMode = Enum.RollOffMode.InverseTapered
+    snd.SoundId = math.random(1, #hits)
+	if i == "Step" then
+		local eq = Instance.new("EqualizerSoundEffect", snd)
+		local ds = Instance.new("DistortionSoundEffect", snd)
+		ds.Level = .83
+		ds.Priority = 0
+
+		eq.HighGain = 0
+		eq.LowGain = 0
+		eq.MidGain = 0
+		eq.Priority = 0
+	end
+
+	sounds[i] = snd
+end
+
+for i, v in pairs(hits) do
+	local snd = Instance.new("Sound")
+	snd.SoundId = v
+	snd.Volume = 8
+    
+	snd.PlaybackSpeed = 1.25
+	snd.RollOffMinDistance = 1
+	snd.RollOffMaxDistance = 34
+	snd.RollOffMode = Enum.RollOffMode.InverseTapered
+
+	sounds[snd.Name] = snd
+end
+
+local soundstorage = workspace:FindFirstChild("SoundStorage") or Instance.new("Folder")
+soundstorage.Parent = workspace
+
+local function play(what, p, scf)
+	if sounds[what] then
+		local snd = sounds[what]:Clone()
+		snd.Name = what
+		snd.Parent = p or hum.RootPart
+
+		local pt
+
+		if scf ~= nil then
+			pt = Instance.new("Part", soundstorage)
+			pt.CFrame = scf
+			pt.CanCollide = false
+			pt.CanQuery = false
+			pt.CanTouch = false
+			pt.Anchored = true
+			pt.Transparency = 1
+			pt.Size = Vector3.one
+
+			snd.Parent = pt
+		end
+
+		snd:Play()
+
+		snd.Ended:Once(function()
+			task.wait(.1)
+
+			snd:Destroy()
+
+			if pt then
+				pt:Destroy()
+			end
+		end)
+
+		return snd
+	end
+end
+
+local idle = play("Idle")
+idle.Looped = true
+
+local function lerp(a, b, t)
+	return a + (b - a) * t
+end
+
+local function findhum(p)
+	local mdl = p:FindFirstAncestorOfClass("Model")
+
+	if mdl then
+		return mdl:FindFirstChildOfClass("Humanoid")
+	end
+end
+
+local function stamina_change()
+	local main = ui.Stats.Stamina.Clipping.Clipping
+	main.Parent.Parent.Middle.Heart.TextLabel.Text = tostring(math.floor(stamina))
+
+	local scale = math.max(stamina / max_stamina, 0)
+
+	tw:Create(main, TweenInfo.new(.1), {Size = UDim2.fromScale(1, scale)}):Play()
+	tw:Create(main.Bar, TweenInfo.new(.1), {Size = UDim2.fromScale(1, (scale > 0 and (1 / scale) or 0))}):Play()
+end
+
+local function do_cam(plr, dur, cam)
+	local scr = assets.Scripts.CameraScript:Clone()
+	scr:WaitForChild("Camera").Value = cam or char.ScareCamera
+	scr.Parent = plr.PlayerGui
+	scr.Enabled = true
+
+	task.delay(dur, function()
+		if scr.Parent then
+			scr.Done.Value = true
+			task.wait(2)
+			scr:Destroy()
+		end
+	end)
+end
+
+
+local function bite_of_87(vhum, Humanoid)
+	vhum.PlatformStand = true
+
+	for _, v in pairs(vhum.Parent:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.Massless = true
+		end
+	end
+
+	local w = Instance.new("Weld", vhum.Parent.Head)
+	w.Part0 = char.ScareCamera
+	w.Part1 = w.Parent
+
+	local plr = game:GetService("Players"):GetPlayerFromCharacter(vhum.Parent)
+local s1 = Instance.new("Sound", hum.RootPart)
+s1.SoundId = "rbxassetid://76433705992689"
+s1.Volume = 5
+s1:Play()
+
+s1.Ended:Once(function() s1:Destroy() end)
+
+task.delay(1, function()
+local s2 = Instance.new("Sound", hum.RootPart)
+s2.SoundId = "rbxassetid://128035789183475"
+s2.Volume = 8
+s2:Play()
+s2.Ended:Once(function() s2:Destroy() end)
+end)
+task.delay(1.5, function()
+local s2 = Instance.new("Sound", hum.RootPart)
+s2.SoundId = "rbxassetid://135556318939890"
+s2.Volume = 8
+s2:Play()
+s2.Ended:Once(function() s2:Destroy() end)
+end)
+task.delay(3.5, function()
+local s2 = Instance.new("Sound", hum.RootPart)
+s2.SoundId = "rbxassetid://79523726520247"
+s2.Volume = 8
+s2:Play()
+s2.Ended:Once(function() s2:Destroy() end)
+end)
+	task.spawn(function()
+		repeat
+			task.wait()
+		until victim_kill
+
+		if plr then
+			local gui = Instance.new("ScreenGui", plr.PlayerGui)
+			gui.IgnoreGuiInset = true
+
+			local fr = Instance.new("ImageLabel", gui)
+			fr.BorderSizePixel = 0
+			fr.ImageTransparency = 1
+			fr.BackgroundTransparency = 1
+			fr.Size = UDim2.fromScale(1, 1)
+			fr.Image = "rbxassetid://5989559561"
+			fr.ImageColor3 = Color3.new(.5, 0, 0)
+			fr.BackgroundColor3 = Color3.new(.2, 0, 0)
+
+			tw:Create(fr, TweenInfo.new(.1), {ImageTransparency = 0, BackgroundTransparency = 0}):Play()
+
+			task.delay(.1, function()
+				tw:Create(fr, TweenInfo.new(2), {ImageTransparency = .2, BackgroundTransparency = .2}):Play()
+			end)
+		end
+
+		local bl = assets.Effects.Blood.Blood:Clone()
+		bl.Parent = vhum.RootPart
+
+		for _, v in pairs(bl:GetChildren()) do
+			v:Emit(128)
+		end
+
+		vhum.Health = 0
+		w:Destroy()
+
+		vhum.PlatformStand = false
+	end)
+
+	if killing then
+		if plr then
+			local scr = assets.Scripts.InvisibleScript:Clone()
+			scr.Parent = vhum.Parent
+			scr.Enabled = true
+
+			do_cam(plr, (anims.Kill.Length - anims.Kill.TimePosition) + 2, vhum.Parent.Head)
+		end
+
+		return
+	else
+		if plr then
+			local scr = assets.Scripts.InvisibleScript:Clone()
+			scr.Parent = vhum.Parent
+			scr.Enabled = true
+
+			do_cam(plr, anims.Kill.Length + 2, vhum.Parent.Head)
+		end
+	end
+
+	play("Kill")
+	killing = true
+	anims.Kill:Play()
+	hum.WalkSpeed = 0
+
+	task.delay(3.6, function()
+		victim_kill = true
+		task.wait(.1)
+
+		victim_kill = false
+		local op = assets.Scripts.CameraFix:Clone()
+		op.Parent = plr.PlayerGui
+		op.Enabled = true
+	end)
+
+	anims.Kill.Stopped:Wait()
+	play("Afterkill")
+
+	killing = false
+	attacking = false
+	hum.WalkSpeed = ows
+end
+
+local function hb(pt, cf, size, type, bl)
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {char, script, bl}
+
+	if debug then
+		local p = Instance.new("Part", script)
+		p.Size = size
+		p.Anchored = true
+		p.CastShadow = false
+		p.CanCollide = false
+		p.CFrame = pt.CFrame * cf
+		p.Material = "ForceField"
+		p.Color = Color3.new(1, 0, 0)
+
+		if type == "Magnitude" then
+			p.Shape = "Ball"
+		end
+
+		task.spawn(function()
+			task.wait(.5)
+			p:Destroy()
+		end)
+	end
+
+	local victims = {}
+	local tbl
+
+	if type == "Magnitude" then
+		tbl = workspace:GetPartBoundsInRadius(pt.Position, size.X / 2, params)
+	else
+		tbl = workspace:GetPartBoundsInBox(pt.CFrame * cf, size, params)
+	end
+
+	for _, hit in pairs(tbl) do
+		if hit then
+			local hum = findhum(hit)
+			if hum and hum.RootPart and hum.Health > 0 then
+				local model = hit:FindFirstAncestorOfClass("Model")
+				if model and not table.find(victims, model) then
+					table.insert(victims, model)
+				end
+			end
+		end
+	end
+
+	table.sort(victims, function(a, b)
+		return (hum.RootPart.Position - a.HumanoidRootPart.Position).Magnitude < (hum.RootPart.Position - b.HumanoidRootPart.Position).Magnitude
+	end)
+
+	return victims
+end
+local MAX_HITS = 4
+local BLEEDOUT_HITS = 2
+local MIN_HP = 0.001
+
+local function linger(n, stats)
+	local bl = {}
+
+	if #stats == 3 then
+		table.insert(stats, "Box")
+	end
+
+	table.insert(stats, bl)
+
+	task.spawn(function()
+		for _ = 1, n do
+			local inhb = hb(table.unpack(stats))
+
+			for _, v in pairs(inhb) do
+				if v then
+					table.insert(bl, v)
+					local vhum = v:FindFirstChildOfClass("Humanoid")
+					if vhum and vhum.Health > 0 then
+						local stacks = vhum:GetAttribute("Stacks") or 0
+stacks += 1
+vhum:SetAttribute("Stacks", stacks)
+local hits = vhum:GetAttribute("HitCount") or 0
+hits += 1
+vhum:SetAttribute("HitCount", hits)
+
+local dmg = (5 + stacks * 7)
+
+local will_die = (vhum.Health - dmg) <= 0
+
+if will_die then
+	-- clamp so kill animation can run
+	vhum.Health = MIN_HP
+
+	if hits >= MAX_HITS then
+		task.spawn(bite_of_87, vhum)
+	end
+else
+	vhum.Health -= dmg
+end
+
+task.spawn(function()
+	for i = 1, stacks do
+		if vhum.Health <= MIN_HP then break end
+		task.wait(0.1)
+
+		local hits = vhum:GetAttribute("HitCount") or 0
+		local newHp = vhum.Health - 12.35
+
+		if newHp <= 0 then
+			vhum.Health = MIN_HP
+
+			if hits >= BLEEDOUT_HITS then
+				task.spawn(bite_of_87, vhum)
+			end
+
+			break
+		else
+			vhum.Health = newHp
+		end
+	end
+end)
+
+
+						local blEffect = assets.Effects.Blood.Blood:Clone()
+						blEffect.Parent = vhum.RootPart
+
+						for _, particle in pairs(blEffect:GetChildren()) do
+							particle:Emit(128)
+						end
+
+						playHitSound(vhum.RootPart)
+					end
+				end
+			end
+
+			task.wait()
+			task.wait()
+		end
+	end)
+end
+
+local function attack()
+	if attacking or phantom then
+		return
+	end
+
+	attacking = true
+	play("Attack")
+	anims.Attack:Play(1.5)
+	task.delay(.5 / 1.5, linger, 5, {hum.RootPart, CFrame.new(0, 0, -3), Vector3.new(6, 8, 4)})
+	anims.Attack.Stopped:Wait()
+
+	if not killing then
+		attacking = false
+	end
+end
+
+local function ventilation_error()
+	if venting then
+		return
+	end
+
+	venting = true
+	local alarm = Instance.new("Sound", hum.RootPart)
+	alarm.SoundId = "rbxassetid://8742892992"
+	alarm.Volume = 0.5
+	local IDK = Instance.new("Sound", hum.RootPart)
+	IDK.SoundId = "rbxassetid://5990425910"
+	IDK.Volume = 0.5
+	anims.VentilationError:Play()
+
+	local main = ui.Abilities.VentilationError
+	main.CD.Text = "20"
+	tw:Create(main.ImageLabel, TweenInfo.new(1), {ImageColor3 = main.CD.TextColor3}):Play()
+
+	for _, v in pairs(char.Head:GetDescendants()) do
+		if v.Name == "Sparks" then
+			task.spawn(function()
+				while anims.VentilationError.IsPlaying do
+					v:Emit(3)
+					task.wait(1 / v.Rate)
+				end
+			end)
+		end
+	end
+
+	local dt = 0
+	local hums = {}
+
+	repeat
+		dt = dt + task.wait()
+
+		local params = OverlapParams.new()
+		params.FilterDescendantsInstances = {char, script}
+		params.FilterType = Enum.RaycastFilterType.Exclude
+
+		local stuff = workspace:GetPartBoundsInRadius(hum.RootPart.Position, 25, params)
+
+		for _, v in pairs(stuff) do
+			local vhum = findhum(v)
+
+			if vhum and vhum.Health > 0 and not hums[vhum] then
+				hums[vhum] = vhum.WalkSpeed
+				vhum.WalkSpeed = vhum.WalkSpeed /2
+
+				local plr = game:GetService("Players"):GetPlayerFromCharacter(vhum.Parent)
+
+				if plr then
+					local gui = Instance.new("ScreenGui", plr.PlayerGui)
+					gui.IgnoreGuiInset = true
+
+					local fr = Instance.new("Frame", gui)
+					fr.BorderSizePixel = 0
+					fr.BackgroundTransparency = 1
+					fr.Size = UDim2.fromScale(1, 1)
+					fr.BackgroundColor3 = Color3.new()
+					tw:Create(fr, TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, 3, true, 0), {BackgroundTransparency = 0}):Play()
+
+					task.delay(6, gui.Destroy, gui)
+				end
+
+				task.delay(5, function()
+					vhum.WalkSpeed = hums[vhum]
+				end)
+			end
+		end
+	until dt >= 4.5
+
+	main.CD.Visible = true
+	main.ImageLabel.Visible = false
+	main.ImageLabel.ImageColor3 = Color3.new(1, 1, 1)
+
+	local dt = 0
+
+	repeat
+		dt = dt + task.wait()
+		main.CD.Text = tostring(math.floor(21 - dt))
+	until dt >= 20
+
+	venting = false
+	main.CD.Visible = false
+	main.ImageLabel.Visible = true
+end
+
+local function phantom_walk()
+	if not can_phantom then
+		return
+	end
+
+	if sprinting then
+		sprinting = false
+		anims.Sprint:Stop()
+	end
+
+	ows = 24
+	hum.WalkSpeed = ows
+
+	idle:Stop()
+	phantom = true
+	can_phantom = false
+	play("PhantomStart")
+	anims.PhantomIdle:Play()
+	anims.PhantomWalk:Play()
+
+	local pidle = play("PhantomLoop")
+	pidle.Looped = true
+
+	local main = ui.Abilities.PhantomWalk
+	main.CD.Text = "15"
+	tw:Create(main.ImageLabel, TweenInfo.new(1), {ImageColor3 = main.CD.TextColor3}):Play()
+
+	local axe = {
+		"Axe Head",
+		"Axe Handle",
+		"Axe HeadExtra"
+	}
+
+	for _, v in pairs(axe) do
+		tw:Create(char:FindFirstChild(v), TweenInfo.new(.1), {Transparency = 1}):Play()
+	end
+
+	for _, v in pairs(char.Parts.Chest.Attachment:GetChildren()) do
+		task.spawn(function()
+			while phantom do
+				v:Emit(1)
+				task.wait(1 / v.Rate)
+			end
+		end)
+	end
+
+	for _, v in pairs(char.Torso.Attachment:GetChildren()) do
+		task.spawn(function()
+			while phantom do
+				v:Emit(1)
+				task.wait(1 / v.Rate)
+			end
+		end)
+	end
+
+	local dt = 0
+	local hums = {}
+	re:FireClient(owner, "Highlight")
+
+	repeat
+		dt = dt + task.wait()
+		stamina_change()
+		stamina = math.clamp(stamina + dt * 20, 0, max_stamina)
+
+		local params = OverlapParams.new()
+		params.FilterDescendantsInstances = {char, script}
+		params.FilterType = Enum.RaycastFilterType.Exclude
+
+		local stuff = workspace:GetPartBoundsInBox(hum.RootPart.CFrame, Vector3.one * 12, params)
+
+		for _, v in pairs(stuff) do
+			local vhum = findhum(v)
+
+			if vhum and vhum.Health > 0 and not hums[vhum] then
+				hums[vhum] = true
+
+				local gui = assets.Effects.Fearful:Clone()
+				gui.Parent = vhum.Parent
+
+				vhum:SetAttribute("Fearful", true)
+
+				task.delay(10, function()
+					gui:Destroy()
+					vhum:SetAttribute("Fearful", nil)
+				end)
+
+				play("Jumpscare", vhum.RootPart)
+
+				local plr = game:GetService("Players"):GetPlayerFromCharacter(vhum.Parent)
+
+				if plr then
+					gui.PlayerToHideFrom = plr
+					play("Jumpscare", plr.PlayerGui)
+
+					task.spawn(function()
+						local scr = assets.Scripts.JumpscareScript:Clone()
+						scr.Parent = plr.PlayerGui
+						scr:WaitForChild("Offset").Value = CFrame.new(0, -3.5, -3) * CFrame.Angles(0, math.pi, 0)
+						scr.Enabled = true
+						task.delay(5, scr.Destroy, scr)
+					end)
+				end
+			end
+		end
+	until dt >= 6 or (not phantom and (dt >= 1.1))
+
+	re:FireClient(owner, "Lowlight")
+
+	for _, v in pairs(axe) do
+		task.delay(1.5, function()
+			tw:Create(char:FindFirstChild(v), TweenInfo.new(.5), {Transparency = 0}):Play()
+		end)
+	end
+
+	ows = 8
+	idle:Play()
+	pidle:Stop()
+	phantom = false
+	hum.WalkSpeed = ows
+	anims.PhantomIdle:Stop()
+	anims.PhantomWalk:Stop()
+
+	main.CD.Visible = true
+	main.ImageLabel.Visible = false
+	main.ImageLabel.ImageColor3 = Color3.new(1, 1, 1)
+
+	local dt = 0
+
+	repeat
+		dt = dt + task.wait()
+		main.CD.Text = tostring(math.floor(16 - dt))
+	until dt >= 15
+
+	can_phantom = true
+	main.CD.Visible = false
+	main.ImageLabel.Visible = true
+end
+hum.Running:Connect(function(spd)
+	if spd > .1 then
+		running = true
+		anims.Sprint:AdjustWeight(3)
+		anims.Walk:AdjustWeight(2.5)
+		anims.PhantomWalk:AdjustWeight(3.5)
+	else
+		running = false
+		anims.PhantomWalk:AdjustWeight(1)
+		anims.Sprint:AdjustWeight(1)
+		anims.Walk:AdjustWeight(1)
+	end
+end)
+
+anims.Walk:GetMarkerReachedSignal("Step"):Connect(function()
+	if anims.Walk.RealWeight > anims.Idle.RealWeight and not sprinting and not phantom then
+		play("Step")
+	end
+end)
+
+anims.Sprint:GetMarkerReachedSignal("Step"):Connect(function()
+	if anims.Sprint.RealWeight > anims.Idle.RealWeight and not phantom then
+		play("Step")
+	end
+end)
+
+local tp_cd = false
+
+local function teleport_and_attack()
+	if tp_cd or attacking or phantom then return end
+	tp_cd = true
+
+	local target, dist = nil, math.huge
+
+	for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+		if plr ~= owner and plr.Character then
+			local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+			local vhum = plr.Character:FindFirstChildOfClass("Humanoid")
+			if hrp and vhum and vhum.Health > 0 then
+				local d = (hrp.Position - hum.RootPart.Position).Magnitude
+				if d < dist then
+					dist = d
+					target = plr.Character
+				end
+			end
+		end
+	end
+
+	if not target then
+		task.delay(50, function() tp_cd = false end)
+		return
+	end
+
+	local hrp = target.HumanoidRootPart
+	char:PivotTo(hrp.CFrame * CFrame.new(0, 0, -3))
+
+	local snd = Instance.new("Sound", hum.RootPart)
+	snd.SoundId = (math.random(1,2) == 1)
+		and "rbxassetid://84632739448429"
+		or "rbxassetid://120317856467067"
+	snd.Volume = 1
+	snd:Play()
+	snd.Ended:Once(function() snd:Destroy() end)
+
+	attacking = true
+	anims.Attack:Play(1.8)
+
+	task.delay(.15, function()
+		linger(6, {hum.RootPart, CFrame.new(0,0,-3), Vector3.new(7,8,5)})
+	end)
+
+	anims.Attack.Stopped:Wait()
+	attacking = false
+
+	task.delay(50, function()
+		tp_cd = false
+	end)
+end
+
+re.OnServerEvent:Connect(function(plr, what, args)
+	if plr ~= owner then
+		return "silly goose"
+	end
+
+	if what == "KeyDown" then
+		if args == "z" and not phantom then
+			ows = 26
+			sprinting = true
+			anims.Sprint:Play()
+			hum.WalkSpeed = ows
+		elseif args == "e" then
+			ventilation_error()
+		elseif args == "r" then
+			phantom_walk()
+		end
+	elseif what == "KeyUp" then
+		if args == "z" and sprinting then
+			ows = 8
+			sprinting = false
+			anims.Sprint:Stop()
+			hum.WalkSpeed = ows
+		elseif args == "r" and phantom then
+			phantom = false
+		end
+
+	elseif what == "Button1Down" then
+		attack()
+	elseif what == "OnMobile" then
+		ui.Mobile.Visible = true
+
+		local sprint_toggle = false
+
+		ui.Mobile.Attack.MouseButton1Click:Connect(function()
+			re:FireClient(owner, "MobileInput", "Button1Down")
+		end)
+
+		ui.Mobile.Sprint.MouseButton1Click:Connect(function()
+			if sprint_toggle then
+				re:FireClient(owner, "MobileInput", "KeyUp", "z")
+				sprint_toggle = false
+			else
+				re:FireClient(owner, "MobileInput", "KeyDown", "z")
+				sprint_toggle = true
+			end
+		end)
+
+		local map = {
+			PhantomWalk = "r",
+			VentilationError = "e"
+		}
+	end
+end)
+
+hum.WalkSpeed = 0
+task.wait(.5)
+
+anims.Intro:Play()
+play("Intro")
+
+for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+	if plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and (plr.Character.HumanoidRootPart.Position - hum.RootPart.Position).Magnitude <= 16 then
+		task.spawn(do_cam, plr, anims.Intro.Length)
+
+		task.delay(anims.Intro.Length - 1.25, function()
+			local gui = Instance.new("ScreenGui", plr.PlayerGui)
+			gui.IgnoreGuiInset = true
+
+			local fr = Instance.new("Frame", gui)
+			fr.BorderSizePixel = 0
+			fr.BackgroundTransparency = 1
+			fr.Size = UDim2.fromScale(1, 1)
+			fr.BackgroundColor3 = Color3.new()
+			tw:Create(fr, TweenInfo.new(.5), {BackgroundTransparency = 0}):Play()
+			task.wait(2)
+
+			tw:Create(fr, TweenInfo.new(1), {BackgroundTransparency = 1}):Play()
+			task.wait(1)
+
+			gui:Destroy()
+		end)
+	end
+end
+
+anims.Intro.Stopped:Wait()
+hum.WalkSpeed = ows
+
+NLS([[
+	local highlights = {}
+	local re = script.Parent
+	local m = owner:GetMouse()
+	local hum = re.Parent.Humanoid
+	local cam = workspace.CurrentCamera
+	local uis = game:GetService("UserInputService")
+	local assets = game:GetService("ReplicatedStorage"):WaitForChild("SpringtrapAssets")
+
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		cam = workspace.CurrentCamera
+	end)
+
+	if uis.TouchEnabled then
+		re:FireServer("OnMobile")
+	end
+
+	m.KeyDown:Connect(function(k)
+		re:FireServer("KeyDown", k)
+	end)
+
+	m.KeyUp:Connect(function(k)
+		re:FireServer("KeyUp", k)
+	end)
+
+	if not uis.TouchEnabled then
+		m.Button1Down:Connect(function()
+			re:FireServer("Button1Down")
+		end)
+	end
+
+	re.OnClientEvent:Connect(function(what, ...)
+		local args = {...}
+
+		if what == "Highlight" then
+			for _, v in pairs(workspace:GetDescendants()) do
+				if v:IsA("Humanoid") and v ~= hum then
+					local hl = Instance.new("Highlight", cam)
+					hl.Adornee = v.Parent
+					hl.OutlineTransparency = 1
+					hl.Name = "SpringtrapHighlight"
+					hl.FillColor = Color3.new(.6, .6, 0)
+
+					table.insert(highlights, hl)
+				end
+			end
+		elseif what == "Lowlight" then
+			for _, v in pairs(highlights) do
+				v:Destroy()
+			end
+
+			table.clear(highlights)
+		elseif what == "MobileInput" then
+			re:FireServer(unpack(args))
+		end
+	end)
+
+	game:GetService("RunService").RenderStepped:Connect(function()
+		hum.CameraOffset = hum.CameraOffset:Lerp(hum.RootPart.CFrame:ToObjectSpace(re.Parent.Torso.CFrame).Position, .1)
+	end)
+]], re)
+
+task.spawn(function()
+	local hums = {}
+	local vl_db = false
+
+	while true do
+		task.wait(.5)
+
+		local params = OverlapParams.new()
+		params.FilterDescendantsInstances = {char, script}
+		params.FilterType = Enum.RaycastFilterType.Exclude
+
+		local stuff = workspace:GetPartBoundsInRadius(hum.RootPart.Position, 84, params)
+
+		table.sort(stuff, function(a, b)
+			return (hum.RootPart.Position - a.Position).Magnitude < (hum.RootPart.Position - b.Position).Magnitude
+		end)
+
+		local cdb = false
+
+		for _, v in pairs(stuff) do
+			local vhum = findhum(v)
+
+			if vhum and vhum.Health > 0 then
+				local dist = (vhum.RootPart.Position - hum.RootPart.Position).Magnitude
+
+				if not vl_db and dist <= 48 then
+					vl_db = true
+					play(Lurking{math.random(1, 2)})
+
+					task.delay(10, function()
+						vl_db = false
+					end)
+				end
+
+				if not cdb then
+					cdb = true
+
+					local t = math.min((84 - math.min(dist, 84)) / 32, 1)
+					tw:Create(fnaf3, TweenInfo.new(.5), {Volume = lerp(.02, .3, t)}):Play()
+
+					tw:Create(eq, TweenInfo.new(.5), {
+						HighGain = lerp(-80, 0, t),
+						LowGain = lerp(10, 0, t),
+						MidGain = lerp(-15, 0, t)
+					}):Play()
+				end
+			end
+		end
+	end
+end)
+
+while true do
+	if running and sprinting then
+		task.wait(.22)
+		stamina = math.clamp(stamina - 2, 0, max_stamina)
+		stamina_change()
+	else
+		task.wait(.3)
+		stamina = math.clamp(stamina + 4, 0, max_stamina)
+		stamina_change()
+	end
+
+	if stamina <= 0 and sprinting then
+		ows = 8
+		sprinting = false
+		anims.Sprint:Stop()
+		hum.WalkSpeed = ows
+		play("Exhaustion")
+	end
+end
