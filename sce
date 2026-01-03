@@ -49,7 +49,7 @@ if not assets then
 	assets.Parent = game:GetService("ReplicatedStorage")
 end
 
-local char = workspace.SP:Clone()
+local char = game.ServerStorage.SP:Clone()
 char.Parent = workspace
 char.Name = owner.Name
 local playerChar = owner.Character
