@@ -1,86 +1,97 @@
-local owner = owner or game.Players.Ziggyriggyy
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local owner = owner or Players:WaitForChild("questionaltmark1111") or Players:WaitForChild("ZiggyRiggyy")
+
+-- Clone SP character
 local char = game.ServerStorage.SP:Clone()
-char.Parent = workspace
-local playerChar = owner.Character
-char:PivotTo(playerChar.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
+char.Parent = Workspace
+char.Name = owner.Name
+char:PivotTo(owner.Character.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
 
 local hum = char:WaitForChild("Humanoid")
 local root = hum.RootPart
 root.Anchored = false
 
 -- Disable unwanted humanoid states
-local blacklist = {
-	"Flying", "Ragdoll", "Freefall", "GettingUp", "FallingDown", "PlatformStanding"
-}
+local blacklist = {"Flying","Ragdoll","Freefall","GettingUp","FallingDown","PlatformStanding"}
 for _, v in pairs(blacklist) do
 	hum:SetStateEnabled(Enum.HumanoidStateType[v], false)
 end
 
 owner.Character = char
-char.Parent = workspace
 
 -- Movement variables
-local sprinting, phantom = false, false
 local ows = 8
-local stamina, max_stamina = 100, 100
+local sprinting, phantom, venting = false, false, false
+local can_phantom = true
+local stamina, max_stamina = 120, 120
+
 hum.WalkSpeed = ows
 
--- RemoteEvent setup
-local re = Instance.new("RemoteEvent", char)
-re.Name = "SpringtrapEvent"
-
-local can_phantom = true
-local venting = false
+-- RemoteEvent
+local re = Instance.new("RemoteEvent")
+re.Name = "SPEvent"
+re.Parent = char
 
 -- Animations
-local idleAnim = Instance.new("Animation")
-idleAnim.AnimationId = "rbxassetid://82092759138926"
-local idleTrack = hum:LoadAnimation(idleAnim)
-idleTrack.Looped = true
-idleTrack:Play()
+local anims = {}
 
-local moveAnim = Instance.new("Animation")
-moveAnim.AnimationId = "rbxassetid://75214712948755"
-local moveTrack = hum:LoadAnimation(moveAnim)
-moveTrack.Looped = true
+local function loadAnim(name, id, looped)
+	local anim = Instance.new("Animation")
+	anim.AnimationId = "rbxassetid://"..id
+	local track = hum:LoadAnimation(anim)
+	track.Looped = looped
+	anims[name] = track
+end
 
-local ventAnim = Instance.new("Animation")
-ventAnim.AnimationId = "rbxassetid://123214245969261"
+-- Add your animations here
+loadAnim("Idle", 82092759138926, true)
+loadAnim("Walk", 75214712948755, true)
+loadAnim("Sprint", 75214712948755, true) -- can use same as walk or custom
+loadAnim("PhantomWalk", 12345678901234, true) -- replace with actual asset IDs
+loadAnim("PhantomIdle", 12345678901235, true)
+loadAnim("VentilationError", 123214245969261, false)
+loadAnim("Attack", 98765432109876, false)
 
--- Ventilation error
+anims.Idle:Play()
+
+-- Utility to find humanoid from part
+local function findhum(part)
+	local mdl = part:FindFirstAncestorOfClass("Model")
+	if mdl then
+		return mdl:FindFirstChildOfClass("Humanoid")
+	end
+end
+
+-- Ventilation effect
 local function ventilation_error()
 	if venting then return end
 	venting = true
 
-	local ventTrack = hum:LoadAnimation(ventAnim)
-	ventTrack.Looped = true
-	ventTrack:Play()
-
+	anims.VentilationError:Play()
+	local hums = {}
 	task.spawn(function()
 		local dt = 0
-		local hums = {}
-
+		re:FireClient(owner, "Highlight")
 		repeat
 			dt = dt + task.wait()
 			local params = OverlapParams.new()
 			params.FilterDescendantsInstances = {char, script}
 			params.FilterType = Enum.RaycastFilterType.Exclude
-
-			local stuff = workspace:GetPartBoundsInRadius(root.Position, 25, params)
+			local stuff = Workspace:GetPartBoundsInRadius(root.Position, 25, params)
 			for _, v in pairs(stuff) do
-				local vhum = v.Parent:FindFirstChildOfClass("Humanoid")
+				local vhum = findhum(v)
 				if vhum and vhum.Health > 0 and not hums[vhum] then
 					hums[vhum] = vhum.WalkSpeed
-					vhum.WalkSpeed = hums[vhum] / 2
-					task.delay(5, function()
-						vhum.WalkSpeed = hums[vhum]
-					end)
+					vhum.WalkSpeed = vhum.WalkSpeed / 2
+					task.delay(5, function() vhum.WalkSpeed = hums[vhum] end)
 				end
 			end
 		until dt >= 4.5
-
 		task.wait(20)
-		ventTrack:Stop()
+		re:FireClient(owner, "Lowlight")
 		venting = false
 	end)
 end
@@ -89,67 +100,92 @@ end
 local function phantom_walk()
 	if not can_phantom then return end
 	can_phantom = false
-
 	ows = 24
 	hum.WalkSpeed = ows
 	phantom = true
 
-	task.wait(6) -- phantom duration
+	anims.Idle:Stop()
+	anims.PhantomIdle:Play()
+	anims.PhantomWalk:Play()
+
+	task.wait(6) -- duration
 
 	ows = 8
 	hum.WalkSpeed = ows
 	phantom = false
+	anims.PhantomWalk:Stop()
+	anims.PhantomIdle:Stop()
+	anims.Idle:Play()
 
 	task.wait(15) -- cooldown
 	can_phantom = true
 end
 
--- Sprint / Phantom input
+-- Sprint logic
+local function startSprint()
+	if phantom then return end
+	sprinting = true
+	ows = 18
+	hum.WalkSpeed = ows
+	anims.Walk:Stop()
+	anims.Sprint:Play()
+end
+
+local function stopSprint()
+	sprinting = false
+	ows = 8
+	hum.WalkSpeed = ows
+	anims.Sprint:Stop()
+	anims.Walk:Play()
+end
+
+-- Attack
+local attacking = false
+local function attack()
+	if attacking or phantom then return end
+	attacking = true
+	anims.Attack:Play()
+	anims.Attack.Stopped:Wait()
+	attacking = false
+end
+
+-- Remote input
 re.OnServerEvent:Connect(function(plr, what, args)
 	if plr ~= owner then return end
-
 	if what == "KeyDown" then
-		if args == "z" then
-			ows = 26
-			sprinting = true
-			hum.WalkSpeed = ows
-		elseif args == "e" then
-			ventilation_error()
-		elseif args == "r" then
-			phantom_walk()
+		if args == "z" then startSprint()
+		elseif args == "r" then phantom_walk()
+		elseif args == "e" then ventilation_error()
 		end
 	elseif what == "KeyUp" then
-		if args == "z" and sprinting then
-			ows = 8
-			sprinting = false
-			hum.WalkSpeed = ows
-		elseif args == "r" and phantom then
-			phantom = false
-		end
+		if args == "z" then stopSprint() end
+	elseif what == "Button1Down" then
+		attack()
 	end
 end)
 
--- Dynamic animation based on movement magnitude
-local isMoving = false
-game:GetService("RunService").Heartbeat:Connect(function()
-	if venting or phantom then return end
+-- Movement-based animation loop
+RunService.Heartbeat:Connect(function()
+	if venting or phantom or attacking then return end
 	local speed = root.Velocity.Magnitude
 	if speed > 0.1 then
-		if not isMoving then
-			moveTrack:Play()
-			idleTrack:Stop()
-			isMoving = true
+		if not sprinting then
+			if not anims.Walk.IsPlaying then
+				anims.Idle:Stop()
+				anims.Walk:Play()
+			end
 		end
 	else
-		if isMoving then
-			moveTrack:Stop()
-			idleTrack:Play()
-			isMoving = false
+		if anims.Walk.IsPlaying then
+			anims.Walk:Stop()
+		end
+		if not anims.Idle.IsPlaying then
+			anims.Idle:Play()
 		end
 	end
 end)
 
--- Stamina regen/depletion loop
+-- Stamina loop
 task.spawn(function()
 	while true do
 		if sprinting then
@@ -161,9 +197,7 @@ task.spawn(function()
 		end
 
 		if stamina <= 0 and sprinting then
-			ows = 8
-			sprinting = false
-			hum.WalkSpeed = ows
+			stopSprint()
 		end
 	end
 end)
