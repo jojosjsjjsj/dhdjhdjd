@@ -133,7 +133,7 @@ re.OnServerEvent:Connect(function(plr, what, args)
 end)
 
 -- Dynamic animation based on movement magnitude
-game:GetService("RunService").RenderStepped:Connect(function()
+game:GetService("RunService").Heartbeat:Connect(function()
 	if venting or phantom then return end
 	local speed = root.Velocity.Magnitude
 	if speed > 0.1 then
