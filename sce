@@ -12,7 +12,11 @@ owner.Character = char
 local hum = char:WaitForChild("Humanoid")
 local root = hum.RootPart
 
-local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
+local animator = hum:FindFirstChildOfClass("Animator")
+if not animator then
+	animator = Instance.new("Animator")
+	animator.Parent = hum
+end
 
 -- animation loader
 local function loadAnim(id, prio, loop)
@@ -24,7 +28,7 @@ local function loadAnim(id, prio, loop)
 	return t
 end
 
--- REPLACED animations
+-- animations
 local idle = loadAnim(82092759138926, Enum.AnimationPriority.Idle, true)
 local walk = loadAnim(75214712948755, Enum.AnimationPriority.Movement, true)
 local vent = loadAnim(123214245969261, Enum.AnimationPriority.Action, false)
@@ -34,10 +38,12 @@ idle:Play(0.25)
 local state = "Idle"
 local venting = false
 local lastVent = 0
-local VENT_COOLDOWN = 20
-local RANGE = 10
 
--- raycast params (line of sight)
+local RANGE = 10
+local VENT_COOLDOWN = 45
+local VENT_DURATION = 4.5
+
+-- raycast params for LOS
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 rayParams.FilterDescendantsInstances = {char}
@@ -57,9 +63,11 @@ local function setState(new)
 	if new == "Idle" then
 		walk:Stop(0.25)
 		idle:Play(0.25)
+
 	elseif new == "Walk" then
 		idle:Stop(0.25)
 		walk:Play(0.25)
+
 	elseif new == "Vent" then
 		idle:Stop(0.2)
 		walk:Stop(0.2)
@@ -73,14 +81,30 @@ local function ventilation_error()
 
 	lastVent = os.clock()
 	venting = true
+
+	-- anchor during vent
+	root.Anchored = true
 	setState("Vent")
 
-	task.delay(4.5, function()
+	-- sound
+	local snd = Instance.new("Sound")
+	snd.SoundId = "rbxassetid://79539919270668"
+	snd.Volume = 5
+	snd.Looped = false
+	snd.Parent = root
+	snd:Play()
+
+	task.delay(VENT_DURATION, function()
 		venting = false
+		root.Anchored = false
+
+		if snd then
+			snd:Destroy()
+		end
 	end)
 end
 
--- movement animation (smooth, no snapping)
+-- movement animation (smooth)
 RunService.Heartbeat:Connect(function()
 	if venting then return end
 
@@ -91,7 +115,7 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- proximity + LOS + cooldown
+-- proximity + LOS + cooldown check
 task.spawn(function()
 	while true do
 		task.wait(0.2)
@@ -106,8 +130,8 @@ task.spawn(function()
 
 				local hrp = hum2.RootPart
 				if hrp then
-					local dist = (hrp.Position - root.Position).Magnitude
-					if dist <= RANGE and hasLOS(hrp) then
+					if (hrp.Position - root.Position).Magnitude <= RANGE
+						and hasLOS(hrp) then
 						ventilation_error()
 						break
 					end
