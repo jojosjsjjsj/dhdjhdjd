@@ -40,7 +40,7 @@ local venting = false
 local lastVent = 0
 
 local RANGE = 10
-local VENT_COOLDOWN = 45
+local VENT_COOLDOWN = 100
 local VENT_DURATION = 4.5
 
 -- raycast params for LOS
