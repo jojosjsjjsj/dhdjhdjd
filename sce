@@ -1,45 +1,21 @@
-local owner = owner or game.Players.Ziggyriggyy
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local owner = Players.Ziggyriggyy
 local char = game.ServerStorage.SP:Clone()
 char.Parent = workspace
-
-local playerChar = owner.Character
-char:PivotTo(playerChar.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
-
-local hum = char:WaitForChild("Humanoid")
-local root = hum.RootPart
-root.Anchored = false
-
-local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
-
-local blacklist = {
-	"Flying",
-	"Ragdoll",
-	"Freefall",
-	"GettingUp",
-	"FallingDown",
-	"PlatformStanding"
-}
-for _, v in pairs(blacklist) do
-	hum:SetStateEnabled(Enum.HumanoidStateType[v], false)
-end
+char:PivotTo(owner.Character.HumanoidRootPart.CFrame + Vector3.yAxis * 1.8)
 
 owner.Character = char
 
--- movement
-local sprinting, phantom = false, false
-local ows = 8
-local stamina, max_stamina = 100, 100
-hum.WalkSpeed = ows
+local hum = char:WaitForChild("Humanoid")
+local root = hum.RootPart
 
--- event (kept for compatibility)
-local re = Instance.new("RemoteEvent", char)
-re.Name = "SPEvent"
-
-local can_phantom = true
-local venting = false
+local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
 
 -- animation loader
-local function load(id, prio, loop)
+local function loadAnim(id, prio, loop)
 	local a = Instance.new("Animation")
 	a.AnimationId = "rbxassetid://" .. id
 	local t = animator:LoadAnimation(a)
@@ -48,117 +24,95 @@ local function load(id, prio, loop)
 	return t
 end
 
--- animations (REPLACED)
-local idleTrack = load(82092759138926, Enum.AnimationPriority.Idle, true)
-local moveTrack = load(75214712948755, Enum.AnimationPriority.Movement, true)
-local ventTrack = load(123214245969261, Enum.AnimationPriority.Action, false)
+-- REPLACED animations
+local idle = loadAnim(82092759138926, Enum.AnimationPriority.Idle, true)
+local walk = loadAnim(75214712948755, Enum.AnimationPriority.Movement, true)
+local vent = loadAnim(123214245969261, Enum.AnimationPriority.Action, false)
 
-idleTrack:Play()
+idle:Play(0.25)
 
--- ventilation error
+local state = "Idle"
+local venting = false
+local lastVent = 0
+local VENT_COOLDOWN = 20
+local RANGE = 10
+
+-- raycast params (line of sight)
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+rayParams.FilterDescendantsInstances = {char}
+rayParams.IgnoreWater = true
+
+local function hasLOS(targetRoot)
+	local dir = targetRoot.Position - root.Position
+	local result = Workspace:Raycast(root.Position, dir, rayParams)
+	if not result then return true end
+	return result.Instance:IsDescendantOf(targetRoot.Parent)
+end
+
+local function setState(new)
+	if state == new then return end
+	state = new
+
+	if new == "Idle" then
+		walk:Stop(0.25)
+		idle:Play(0.25)
+	elseif new == "Walk" then
+		idle:Stop(0.25)
+		walk:Play(0.25)
+	elseif new == "Vent" then
+		idle:Stop(0.2)
+		walk:Stop(0.2)
+		vent:Play(0.15)
+	end
+end
+
 local function ventilation_error()
 	if venting then return end
+	if os.clock() - lastVent < VENT_COOLDOWN then return end
+
+	lastVent = os.clock()
 	venting = true
+	setState("Vent")
 
-	idleTrack:Stop(0)
-	moveTrack:Stop(0)
-	ventTrack:Play()
-
-	local dt = 0
-	local hums = {}
-
-	repeat
-		dt += task.wait()
-		local params = OverlapParams.new()
-		params.FilterDescendantsInstances = {char}
-		params.FilterType = Enum.RaycastFilterType.Exclude
-
-		for _, v in pairs(workspace:GetPartBoundsInRadius(root.Position, 25, params)) do
-			local vhum = v.Parent:FindFirstChildOfClass("Humanoid")
-			if vhum and vhum.Health > 0 and not hums[vhum] then
-				hums[vhum] = vhum.WalkSpeed
-				vhum.WalkSpeed *= .5
-				task.delay(5, function()
-					if vhum then vhum.WalkSpeed = hums[vhum] end
-				end)
-			end
-		end
-	until dt >= 4.5
-
-	task.wait(20)
-	ventTrack:Stop()
-	venting = false
+	task.delay(4.5, function()
+		venting = false
+	end)
 end
 
--- phantom walk
-local function phantom_walk()
-	if not can_phantom then return end
-	can_phantom = false
+-- movement animation (smooth, no snapping)
+RunService.Heartbeat:Connect(function()
+	if venting then return end
 
-	phantom = true
-	hum.WalkSpeed = 24
-
-	task.wait(6)
-
-	hum.WalkSpeed = 8
-	phantom = false
-
-	task.wait(15)
-	can_phantom = true
-end
-
--- input
-re.OnServerEvent:Connect(function(plr, what, args)
-	if plr ~= owner then return end
-
-	if what == "KeyDown" then
-		if args == "z" then
-			sprinting = true
-			hum.WalkSpeed = 26
-		elseif args == "e" then
-			ventilation_error()
-		elseif args == "r" then
-			phantom_walk()
-		end
-	elseif what == "KeyUp" then
-		if args == "z" then
-			sprinting = false
-			hum.WalkSpeed = 8
-		end
-	end
-end)
-
--- animation switching (FIXED, NO DELAY)
-game:GetService("RunService").Heartbeat:Connect(function()
-	if venting or phantom then return end
-
-	if hum.MoveDirection.Magnitude > 0 then
-		if not moveTrack.IsPlaying then
-			idleTrack:Stop(0)
-			moveTrack:Play(0)
-		end
+	if hum.MoveDirection.Magnitude > 0.05 then
+		setState("Walk")
 	else
-		if not idleTrack.IsPlaying then
-			moveTrack:Stop(0)
-			idleTrack:Play(0)
-		end
+		setState("Idle")
 	end
 end)
 
--- stamina
+-- proximity + LOS + cooldown
 task.spawn(function()
 	while true do
-		if sprinting then
-			task.wait(.22)
-			stamina = math.max(stamina - 2, 0)
-		else
-			task.wait(.3)
-			stamina = math.min(stamina + 4, max_stamina)
-		end
+		task.wait(0.2)
 
-		if stamina <= 0 then
-			sprinting = false
-			hum.WalkSpeed = 8
+		if venting then continue end
+		if os.clock() - lastVent < VENT_COOLDOWN then continue end
+
+		for _, hum2 in ipairs(workspace:GetDescendants()) do
+			if hum2:IsA("Humanoid")
+				and hum2 ~= hum
+				and hum2.Health > 0 then
+
+				local hrp = hum2.RootPart
+				if hrp then
+					local dist = (hrp.Position - root.Position).Magnitude
+					if dist <= RANGE and hasLOS(hrp) then
+						ventilation_error()
+						break
+					end
+				end
+			end
 		end
 	end
 end)
