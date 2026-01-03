@@ -94,14 +94,13 @@ local function ventilation_error()
 	snd.Parent = root
 	snd:Play()
 
-	task.delay(VENT_DURATION, function()
+	snd.Completed:Wait()
 		venting = false
 		root.Anchored = false
 
 		if snd then
 			snd:Destroy()
 		end
-	end)
 end
 
 -- movement animation (smooth)
