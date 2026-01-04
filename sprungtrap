@@ -594,10 +594,6 @@ end
 local function linger(n, stats)
 	local bl = {}
 
-	if #(stats) == 3 then
-		table.insert(stats, "Box")
-	end
-
 	table.insert(stats, bl)
 
 	task.spawn(function()
